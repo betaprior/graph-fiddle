@@ -1,0 +1,13 @@
+#+TITLE: SSSP
+
+This will visually demonstrate single-source shortest path graph algorithms.  
+
+We will animate Dijkstra's algorithm and run it on a graph that is designed
+to show exponential runtime of Dijkstra with negative edges.
+
+
+[[file:index.py][file:~/Dropbox/code/projects/sssp/index.py]]
+
+[[file:templates/index.html][file:~/Dropbox/code/projects/sssp/templates/index.html]]
+
+[[file:static/application.js][file:~/Dropbox/code/projects/sssp/static/application.js]]

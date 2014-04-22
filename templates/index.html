@@ -6,16 +6,16 @@
     <script type=text/javascript>
       $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
     </script>    
-    <script type=text/javascript src="{{url_for('static', filename='jquery.min.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='underscore-min.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='backbone-min.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='d3.v3.min.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='application.js') }}"></script>
     <script>
       function hello(arg) {
         $("body").append($("<div>").text("HELLO JS " + arg));
       }
      </script>
+    <script type=text/javascript src="{{url_for('static', filename='jquery.min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='underscore-min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='backbone-min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='d3.v3.min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='application.js') }}"></script>
 </head>
 <body>
   <div id="svg-container"></div>

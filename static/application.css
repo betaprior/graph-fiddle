@@ -4,34 +4,28 @@ svg {
   box-shadow: inset 0 0 3px 0px #CECECE;
 }
 
-svg circle {
-  stroke-width: 2px;
-  stroke: #79A32B;
-  fill: transparent;
-  cursor: pointer;
+/* taken wholesale from d3 example */
+
+path.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5px;
 }
 
-svg circle:active {
-  stroke: #45D3C7;
+path.link.visiting {
+    fill: none;
+    stroke: #666;
+    stroke-width: 3px;
 }
 
-svg circle.selected {
-  stroke: #3333FF;
+circle {
+  fill: #ccc;
+  stroke: #fff;
+  stroke-width: 1.5px;
 }
 
-
-.selection {
-  stroke: gray;
-  stroke-width: 1px;
-  stroke-dasharray: 4px;
-  stroke-opacity: 0.5;
-  fill: transparent;
-}
-
-.cell {
-  stroke: gray;
-  stroke-width: 1px;
-  stroke-dasharray: 4px;
-  stroke-opacity: 0.5;
-  fill: transparent;
+text {
+  fill: #000;
+  font: 10px sans-serif;
+  pointer-events: none;
 }
