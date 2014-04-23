@@ -29,3 +29,19 @@ text {
   font: 10px sans-serif;
   pointer-events: none;
 }
+
+text.dist {
+  fill: #000;
+  font: 14px sans-serif;
+  pointer-events: none;
+}
+
+text.dist.relaxing {
+  fill: #000;
+  font: 14px sans-serif;
+  font-weight: bold;
+  fill: green;
+  pointer-events: none;
+}
+
+    
