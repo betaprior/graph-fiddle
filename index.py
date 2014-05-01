@@ -10,11 +10,23 @@ app = Flask(__name__)
 def root():
 	return render_template('index.html')
 
+
+@app.route("/test<string:num>")
+def numbered_test(num):
+	return render_template('test' + num + '.html')
+
+
 import os
 @app.route('/files/<path:path>')
 def static_proxy(path):
     # send_static_file will guess the correct MIME type
     return app.send_static_file(os.path.join('files', path))
+
+@app.route('/fonts/<path:path>')
+def static_proxy_fonts(path):
+    # send_static_file will guess the correct MIME type
+    return app.send_static_file(os.path.join('fonts', path))
+
 
 class InvalidSearch(Exception):
 	status_code = 400

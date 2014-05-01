@@ -2,21 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='application.css') }}"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/jqueryui-1.8.24/themes/smoothness/jquery-ui.css') }}"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/jqueryui-1.8.24/themes/smoothness/jquery.ui.theme.css') }}"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/ui.spinner.css') }}"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/bootstrap.min.css') }}"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/font-awesome.min.css') }}"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/application.css') }}"/>
     <script type=text/javascript>
       $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
-    </script>    
-    <script>
-      function hello(arg) {
-        $("body").append($("<div>").text("HELLO JS " + arg));
-      }
-     </script>
-    <script type=text/javascript src="{{url_for('static', filename='jquery.min.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='underscore-min.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='backbone-min.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='d3.v3.min.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='application.js') }}"></script>
+    </script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/jquery.min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/jqueryui-1.8.24/ui/minified/jquery-ui.min.js') }}"></script>
+    <!-- <script type=text/javascript src="{{url_for('static', filename='lib/jquery-ui-1.10.4.min.js') }}"></script> -->
+    <script type=text/javascript src="{{url_for('static', filename='lib/ui.spinner.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/underscore-min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/backbone-min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/d3.v3.min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/cola.v2.min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='graph.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='main.js') }}"></script>
 </head>
 <body>
-  <div id="svg-container"></div>
+  <div id="app-container" class="container">
+    <h1>Worst. Dijkstra. Ever.</h1>
+    <div id="graph-controls-container"></div>
+    <div id="animation-controls-container"></div>
+    <div id="algo-view-container"></div>
+  </div>
 </body>
+</html>
