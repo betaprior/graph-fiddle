@@ -1,28 +1,34 @@
 var app = app || {};
 
 app.GraphView = Backbone.View.extend({
-	initialize: function() {
+	initialize: function(options) {
+		options = options || {};
+		if (options.loadData) {
+			this.graphPromise = this.getData(options.loadData);
+		}
 		this.width = 400;
 		this.height = 400;
 		this.nodeR = 20;
-		this.graphPromise = this.getData("files/a4.txt");
+		this.d3el = d3.select(this.el);
 	},
 	render: function() {
-		this.graphPromise.done(function(graph) {
-			this.renderGraph(graph);
-		}.bind(this));
+		if (this.graphPromise !== void 0) {
+			this.graphPromise.done(function(graph) {
+				this.renderGraph(graph);
+			}.bind(this));
+		}
 		return this;
 	},
 	updateSteps: function(n) {
-		d3.selectAll("#status-steps").select("text").text("Steps: " + n);
+		this.d3el.selectAll("#status-steps").select("text").text("Steps: " + n);
 	},
 	updateDist: function(n) {
 		n = n === Infinity ? '∞' : n;
-		d3.selectAll("#status-dist").select("text").text("Shortest path: " + n);
+		this.d3el.selectAll("#status-dist").select("text").text("Shortest path: " + n);
 	},
 	updateOp: function(status, style) {
 		status = status.replace("Infinity", "∞");
-		var text = d3.selectAll("#status-op").select("text")
+		var text = this.d3el.selectAll("#status-op").select("text")
 				.html('<tspan id="annotation">Current comparison: </tspan><tspan id="comparison">'
 					  + status + '</tspan>');
 		if (style)
@@ -215,6 +221,10 @@ app.GraphModel = Backbone.Model.extend({
 	initialize: function(options) {
 		options = options || {};
 		var nVtxs = options.V || 7;
+		this.masterModel = options.masterModel || new Backbone.Model({V: 4});
+		this.listenTo(this.masterModel, "change:V", function() {
+			this.set("V", this.masterModel.get("V"));
+		}.bind(this));
 		this.makeWorstCaseDijkstra(nVtxs);
 		Backbone.Model.prototype.initialize.apply(this, arguments);
 	},

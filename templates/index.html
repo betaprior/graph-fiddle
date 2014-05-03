@@ -20,14 +20,27 @@
     <script type=text/javascript src="{{url_for('static', filename='lib/d3.v3.min.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='lib/cola.v2.min.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='graph.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='graph_simulation.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='main.js') }}"></script>
 </head>
 <body>
   <div id="app-container" class="container">
     <h1>Worst. Dijkstra. Ever.</h1>
     <div id="graph-controls-container"></div>
-    <div id="animation-controls-container"></div>
-    <div id="algo-view-container"></div>
+    <div class="row" id="algo-view-container">
+      <div class="col-md-6" id="dijkstra-container">
+        <div class="animation-controls-container"></div>
+        <div class="graph-container"></div>
+      </div>
+      <div class="col-md-6" id="bellman-ford-container">
+        <div class="animation-controls-container"></div>
+        <div class="graph-container"></div>
+      </div>
+      <div class="col-md-4" id="toposort-container">
+        <div class="animation-controls-container"></div>
+        <div class="graph-container"></div>
+      </div>
+    </div>
   </div>
 </body>
 </html>

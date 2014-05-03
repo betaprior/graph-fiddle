@@ -36,22 +36,27 @@ app.GraphControlsView = Backbone.View.extend({
 	',
 
 	// template: 'Number of vertices: <input type="text" id="spinner" value="6" style="width: 80px;" />',
-	_initSpinner: function() {
+	_bindSpinnerArrows: function() {
 		var $spinner = this.$(".spinner input");
 		$(".spinner .btn:first-of-type").on("click", function() {
-			if (this.animationModel.get("status") === "playing") { return; }
 			if (this._getVal() < this.max) {
 				$spinner.val(this._getVal() + 1);
 				this.model.set("V", this._getVal());
 			}
 		}.bind(this));
 		$(".spinner .btn:last-of-type").on("click", function() {
-			if (this.animationModel.get("status") === "playing") { return; }
 			if (this._getVal() > this.min) {
 				$spinner.val(this._getVal() - 1);
 				this.model.set("V", this._getVal());
 			}
 		}.bind(this));
+	},
+	_disableSpinnerArrows: function() {
+		$(".spinner .btn:first-of-type").off("click");
+		$(".spinner .btn:last-of-type").off("click");
+	},
+	_initSpinner: function() {
+		this._bindSpinnerArrows();
 		var that = this;
 		$("input").change(function() {
 			if ($(this).val().match(/^\d+$/)) {
@@ -69,7 +74,7 @@ app.GraphControlsView = Backbone.View.extend({
 	},
 	initialize: function(options) {
 		options = options || {};
-		this.animationModel = options.animationModel;
+		this.animationModels = options.animationModels;
 		this.min = 2;
 		this.max = options.max || 100;
 		this.defaultV = 4;
@@ -77,13 +82,17 @@ app.GraphControlsView = Backbone.View.extend({
 		if (!this.model.has("V")) {
 			this.model.set("V", this.defaultV);
 		}
-		this.listenTo(this.animationModel, "change", function() {
-			if (this.animationModel.get("status") === "playing") {
+		var playingStateHandler = function(model, val, options) {
+			if (model.get("status") === "playing") {
 				$("input").prop("disabled", true);
+				this._disableSpinnerArrows();
 			} else {
 				$("input").prop("disabled", false);
+				this._bindSpinnerArrows();
 			}
-		});
+		}.bind(this);
+
+		this.listenTo(this.animationModels, "change", playingStateHandler);
 	},
 	render: function() {
 		this.$el.html(this.template);
@@ -141,95 +150,32 @@ function makeIndexedPQ() {
 	return pq;
 }
 
-function showNodeDist(step, options) {
-	options = options || {};
-	var cls = options.cls;
-	var node = step.edge.target;
-	var dist = step.newDist;
-	var oldDist = step.oldDist;
-	var sel = d3.selectAll("#node" + node.name).select("text");
-	if (dist === null) {
-		dist = sel.datum().dist;
-	}
-	var oldText = "";
-	if (options.showOld && oldDist !== void 0) {
-		oldText = oldDist === Infinity ? '∞' : String(oldDist);
-	}
-	var spc = oldText && options.showOld ? ' ' : '';
-	var newText = dist === Infinity ? '∞' : dist;
-	sel.select("#old").text(oldText).attr("text-decoration", "line-through");
-	sel.select("#spc").text(spc);
-	sel.select("#new").text(newText);
-	if (cls) { sel.select("#new").classed(cls, true); }
-}
-
-// This creates the text spans for node distance text; as such, this
-// must be run before any distance labels can be updated using showNodeDist.
-// Creating HTML should probably be delegated to some other function eventually.
-function displayAllDistances(options) {
-	options = options || {};
-	var d3nodes = d3.selectAll("[id^=node]");
-	if (d3nodes.select("tspan#new").empty()) {
-		d3nodes.select("text").html('<tspan id="old"></tspan><tspan id="spc" xml:space="preserve"></tspan><tspan id="new"></tspan>');
-	}
-	var selNew = d3nodes.select("text > tspan#new");
-	var selOld = d3nodes.select("text > tspan#old");
-
-	selOld.text("");
-	selNew.text(function(d) {
-		if (options.fromData) {
-			return d.dist === Infinity ? '∞' : d.dist;
-		} else {
-			return d3.select(this).text();
-		}
-	});
-}
-
-function initializeDistViz(graph, source) {
-	_(graph.nodes).each(function(x) {
-		x.dist = Infinity;
-	});
-	graph.nodes[source].dist = 0;
-	displayAllDistances({fromData: true});
-}
-
-function isTense(edge) {
-	return edge.target.dist > edge.source.dist + edge.weight;
-}
-
-function relax(edge) {
-	edge.target.dist = edge.source.dist + edge.weight;
-	return edge.target.dist;
-}
 
 
-
-app.DijkstraView = app.GraphView.extend({
+app.DijkstraView = app.GraphSimulationView.extend({
 	initialize: function(options) {
 		options = options || {};
 		this.source = options.source || "0";
 		this.target = options.target || "1";
 		this.animationModel = options.animationModel;
 		this.next_step = 0;
-		this.listenTo(this.model, "change:V", function() {
-			this.model.makeWorstCaseDijkstra(this.model.get("V"));
-			this.render();
-		}.bind(this));
+		this._registerEvents();
 		// this.model.on("change:V", function() {
 		// 	debugger;
 		// });
 		app.GraphView.prototype.initialize.apply(this, arguments);
 		// this.run = function() { console.log("I should be redefined at this point"); };
 	},
-	render: function() {
-		var graph = this.model.graph;
-		this.renderGraph(graph);
-		this.runDijkstraViz(graph, this.source, this.target);
+	_registerEvents: function() {
+		this.listenTo(this.model, "change:V", function() {
+			this.model.makeWorstCaseDijkstra(this.model.get("V"));
+			this.render();
+		}.bind(this));
 		this.animationModel.on("change:status", function() {
 			if (this.animationModel.get("status") === "playing") {
 				var ps = this.animationModel.previous("status");
 				if (ps === "new" || ps === "finished") {
-					initializeDistViz(graph, this.source);
+					this.initializeDistViz(this.model.graph, this.source);
 					this.next_step = 0;
 				}
 				this.runActions(this.next_step);
@@ -241,20 +187,25 @@ app.DijkstraView = app.GraphView.extend({
 			// of the simulation is a no-op (or finalizes the simulation)
 			// TODO: hitting "step back" at the beginning resets simulation
 			if (this.animationModel.get("status") === "finished" && this.animationModel.get("req_steps") === 1) {
-				initializeDistViz(graph, this.source);
+				this.initializeDistViz(graph, this.source);
 				this.next_step = 0;
 			}
 			this.animationModel.set("status", "paused");
 			this.runStep(this.next_step - 1 + this.animationModel.get("req_steps"));
 			this.animationModel.set("req_steps", 0);
 		}.bind(this), this);
+	},
+	render: function() {
+		this.renderGraph(this.model.graph);
+		this.runDijkstraViz(this.source, this.target);
 		return this;
 	},
-	runDijkstraViz: function(graph, source, target) {
-		initializeDistViz(graph, source);
+	runDijkstraViz: function(source, target) {
+		var graph = this.model.graph;
+		this.initializeDistViz(graph, source);
+		this.timeout = 1000;
 		var actions = [];
 		var edgeTo = {};
-		var timeout = 1000;
 		var pq = makeIndexedPQ();
 		var node = graph.nodes[source];
 		node.pqHandle = pq.push(node, node.dist);
@@ -268,10 +219,10 @@ app.DijkstraView = app.GraphView.extend({
 				var step = {edge: edge, sourceDist: edge.source.dist, newDist: newDist,
 							oldDist: edge.target.dist,
 							curDist: graph.nodes[this.target].dist, relaxing: false};
-				if (isTense(edge)) {
+				if (this.isTense(edge)) {
 					step.relaxing = true;
 					step.debug = "relax : + " +  edge.target.dist + " > " +  edge.source.dist + " + " + edge.weight;
-					newDist = relax(edge);
+					newDist = this.relax(edge);
 					step.newDist = newDist;
 					edgeTo[edge.target.name] = edge;
 					step.curPath = constructPath(edge.target);
@@ -282,6 +233,7 @@ app.DijkstraView = app.GraphView.extend({
 					}
 				}
 				actions.push(step);
+				this.actions = actions;
 			}
 		}
 		function constructPath(t) {
@@ -293,99 +245,74 @@ app.DijkstraView = app.GraphView.extend({
 			path.reverse();
 			return path;
 		}
-		var pathToString = function(path) {
-			var sbuf = [];
-			_(path).each(function(x) {
-				sbuf.push(x.source.name + "->" + x.target.name + ";");
-			});
-			return sbuf.join(" ");
-		};
-		var vizStep = function(step) {
-			this.updateSteps(this.next_step);
-			this.updateDist(step.curDist);
-			console.log(step.debug);
-			console.log(graph.nodes[this.target]);
-			d3.selectAll("[id^=link]").classed("visiting", false);
-			d3.selectAll("[id^=node]").classed("visiting", false);
-			d3.selectAll("[id^=link]").attr("marker-end", "url(#end)");
-			d3.selectAll("text.dist").classed("relaxing", false);
-			// d3.selectAll("text.dist > tspan#old").text("");
-			displayAllDistances();
-			d3.selectAll("#link" + step.edge.id).classed("visiting", true);
-			var curNode = d3.selectAll("#node" + step.edge.target.name);
-			curNode.classed("visiting", true);
-			// var curNodeText = curNode.selectAll("text.dist");
-			// curNodeText.text(curNodeText.text() + "?");
-			if (step.relaxing) {
-				this.updateOp(step.sourceDist + " + " + step.edge.weight + " < " + step.oldDist,
-							 {fill: "green"});
-				d3.selectAll("[id^=link]").classed("active", false);
-				showNodeDist(step, {cls: "relaxing", showOld: true});
-				// highlight currently active path:
-				_(step.curPath).each(function(edge) {
-					d3.selectAll("#link" + edge.id).classed("active", true);
-					d3.selectAll("#link" + edge.id).attr("marker-end", "url(#end-active)");
 
-				});
-				console.log(pathToString(step.curPath));
-			} else {
-				this.updateOp(step.newDist + " >= " + step.sourceDist + " + " + step.edge.weight,
-							 {fill: "red"});
-			}
-		}.bind(this);
 
-		var deselectAll = function() {
-			d3.selectAll("[id^=link]").classed("visiting", false);
-			d3.selectAll("text.dist").classed("relaxing", false);
-		};
+	}
+});
 
-		var runStep = function(i) {
-			// bound the allowed steps
-			if (i >= actions.length) {
-				i = actions.length - 1;
-			} else if (i < 0) {
-				i = 0;
-			}
-			this.next_step = i + 1;
-			vizStep(actions[i]);
-			if (i === actions.length - 1) {
-				this.animationModel.set("status", "finished");
-				// setTimeout(deselectAll, timeout);
-			}
-		}.bind(this);
-
-		var runActions = function(i) {
-			if (this.animationModel.get("status") !== "playing") { return; }
-			i = i || 0;
-			runStep(i);
-			if (i < actions.length - 1) {
-				setTimeout(function() { runActions(i+1); }, timeout);
-			}
-		}.bind(this);
-
-		this.runStep = runStep;
-		this.runActions = runActions;
+app.AlgoView = Backbone.View.extend({
+	initialize: function(options) {
+		options = options || {};
+		var algo = options.algorithm;
+		var AlgoView;
+		var viewMap = {"dijkstra": app.DijkstraView,
+					   "bellman-ford": app.DijkstraView,
+					   "toposort": app.DijkstraView};
+		if (!_.has(viewMap, algo)) {
+			throw new Error("Invalid algorithm name");
+		} else {
+			AlgoView = viewMap[algo];
+		}
+		this.animationControlsModel = options.animationControlsModel || new Backbone.Model({status: "paused", req_steps: 0});
+		this.graphModel = options.graphModel || new app.GraphModel({V: 6});
+		this.playButton = new app.AnimationControlView({model: this.animationControlsModel});
+		this.graphView  = new AlgoView({model: this.graphModel,
+										animationModel: this.animationControlsModel});
+	},
+	render: function() {
+		this.$(".animation-controls-container").append(this.playButton.$el);
+		this.playButton.render();
+		this.$(".graph-container").append(this.graphView.$el);
+		this.graphView.render();
+		return this;
 	}
 });
 
 app.MainView = Backbone.View.extend({
 	el: "#app-container",
 	initialize: function() {
-		this.animationControlsModel = new Backbone.Model({status: "paused", req_steps: 0});
-		this.graphModel = new app.GraphModel({V: 6});
-		this.graphControls = new app.GraphControlsView({model: this.graphModel,
-														animationModel: this.animationControlsModel});
-		this.playButton = new app.AnimationControlView({model: this.animationControlsModel});
-		this.graphView  = new app.DijkstraView({model: this.graphModel,
-												animationModel: this.animationControlsModel});
+		var algos = ["dijkstra", "bellman-ford"];
+		this.algoViews = [];
+		var graphModels = new Backbone.Collection();
+		var animationModels = new Backbone.Collection();
+		var graphMasterModel = new app.GraphModel({V: 6});
+		_(algos).each(function(x) {
+			var animationControlsModel = new Backbone.Model({status: "paused", req_steps: 0});
+			var graphModel = new app.GraphModel({V: 6, masterModel: graphMasterModel});
+			var view = new app.AlgoView({el: this.$("#" + x + "-container"), algorithm: x,
+										 animationControlsModel: animationControlsModel,
+										 graphModel: graphModel});
+			this.algoViews.push(view);
+			graphModels.add(graphModel);
+			animationModels.add(animationControlsModel);
+		}.bind(this));
+
+		this.graphControls = new app.GraphControlsView({model: graphMasterModel,
+														animationModels: animationModels});
+
 	},
 	render: function() {
+		_(this.algoViews).each(function(x) {
+			x.render();
+		});
 		this.$("#graph-controls-container").append(this.graphControls.$el);
 		this.graphControls.render();
-		this.$("#animation-controls-container").append(this.playButton.$el);
-		this.playButton.render();
-		this.$("#algo-view-container").append(this.graphView.$el);
-		this.graphView.render();
+		// this.$("#animation-controls-container").append(this.playButton.$el);
+		// this.playButton.render();
+		// this.$("#dijkstra-container").append(this.graphView.$el);
+		// this.$("#bellman-ford-container").append(this.graphView2.$el);
+		// this.graphView.render();
+		// this.graphView2.render();
 		return this;
 	}
 });
