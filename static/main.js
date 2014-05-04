@@ -51,10 +51,6 @@ app.GraphControlsView = Backbone.View.extend({
 			}
 		}.bind(this));
 	},
-	_disableSpinnerArrows: function() {
-		$(".spinner .btn:first-of-type").off("click");
-		$(".spinner .btn:last-of-type").off("click");
-	},
 	_initSpinner: function() {
 		this._bindSpinnerArrows();
 		var that = this;
@@ -84,11 +80,11 @@ app.GraphControlsView = Backbone.View.extend({
 		}
 		var playingStateHandler = function(model, val, options) {
 			if (model.get("status") === "playing") {
-				$("input").prop("disabled", true);
-				this._disableSpinnerArrows();
+				$("input, .spinner .btn:first-of-type, .spinner .btn:last-of-type")
+					.prop("disabled", true);
 			} else {
-				$("input").prop("disabled", false);
-				this._bindSpinnerArrows();
+				$("input, .spinner .btn:first-of-type, .spinner .btn:last-of-type")
+					.prop("disabled", false);
 			}
 		}.bind(this);
 
@@ -153,47 +149,8 @@ function makeIndexedPQ() {
 
 
 app.DijkstraView = app.GraphSimulationView.extend({
-	initialize: function(options) {
-		options = options || {};
-		this.source = options.source || "0";
-		this.target = options.target || "1";
-		this.animationModel = options.animationModel;
-		this.next_step = 0;
-		this._registerEvents();
-		// this.model.on("change:V", function() {
-		// 	debugger;
-		// });
-		app.GraphView.prototype.initialize.apply(this, arguments);
-		// this.run = function() { console.log("I should be redefined at this point"); };
-	},
-	_registerEvents: function() {
-		this.listenTo(this.model, "change:V", function() {
-			this.model.makeWorstCaseDijkstra(this.model.get("V"));
-			this.render();
-		}.bind(this));
-		this.animationModel.on("change:status", function() {
-			if (this.animationModel.get("status") === "playing") {
-				var ps = this.animationModel.previous("status");
-				if (ps === "new" || ps === "finished") {
-					this.initializeDistViz(this.model.graph, this.source);
-					this.next_step = 0;
-				}
-				this.runActions(this.next_step);
-			}
-		}.bind(this), this);
-		this.animationModel.on("change:req_steps", function() {
-			if (this.animationModel.get("req_steps") === 0) { return; }
-			// TODO: change this behavior so that hitting "step fwd" at the end
-			// of the simulation is a no-op (or finalizes the simulation)
-			// TODO: hitting "step back" at the beginning resets simulation
-			if (this.animationModel.get("status") === "finished" && this.animationModel.get("req_steps") === 1) {
-				this.initializeDistViz(graph, this.source);
-				this.next_step = 0;
-			}
-			this.animationModel.set("status", "paused");
-			this.runStep(this.next_step - 1 + this.animationModel.get("req_steps"));
-			this.animationModel.set("req_steps", 0);
-		}.bind(this), this);
+	initialize: function() {
+		app.GraphSimulationView.prototype.initialize.apply(this, arguments);
 	},
 	render: function() {
 		this.renderGraph(this.model.graph);
@@ -202,9 +159,8 @@ app.DijkstraView = app.GraphSimulationView.extend({
 	},
 	runDijkstraViz: function(source, target) {
 		var graph = this.model.graph;
+		this.actions = [];
 		this.initializeDistViz(graph, source);
-		this.timeout = 1000;
-		var actions = [];
 		var edgeTo = {};
 		var pq = makeIndexedPQ();
 		var node = graph.nodes[source];
@@ -225,28 +181,51 @@ app.DijkstraView = app.GraphSimulationView.extend({
 					newDist = this.relax(edge);
 					step.newDist = newDist;
 					edgeTo[edge.target.name] = edge;
-					step.curPath = constructPath(edge.target);
 					if (edge.target.pqHandle) {
 						pq.changeKey(edge.target.pqHandle, newDist);
 					} else {
 						edge.target.pqHandle = pq.push(edge.target, newDist);
 					}
 				}
-				actions.push(step);
-				this.actions = actions;
+				step.curPath = this.constructPath(edge.target, edgeTo);
+				this.actions.push(step);
 			}
 		}
-		function constructPath(t) {
-			var path = [], edge;
-			while ((edge = edgeTo[t.name])) {
-				path.push(edge);
-				t = edge.source;
-			}
-			path.reverse();
-			return path;
+	}
+});
+
+app.BellmanFordView = app.GraphSimulationView.extend({
+	initialize: function() {
+		app.GraphSimulationView.prototype.initialize.apply(this, arguments);
+	},
+	render: function() {
+		this.renderGraph(this.model.graph);
+		this.runBellmanFordViz(this.source, this.target);
+		return this;
+	},
+	runBellmanFordViz: function(source, target) {
+		var graph = this.model.graph;
+		var V = this.model.V();
+		var E = this.model.E();
+		this.initializeDistViz(graph, source);
+		var edgeTo = {};
+		for (var i = 0; i < V; ++i) {
+			_.each(graph.links, function(edge) {
+				var newDist = edge.target.dist;
+				var step = {edge: edge, sourceDist: edge.source.dist, newDist: newDist,
+							oldDist: edge.target.dist,
+							curDist: graph.nodes[this.target].dist, relaxing: false};
+				if (this.isTense(edge)) {
+					step.relaxing = true;
+					step.debug = "relax : + " +  edge.target.dist + " > " +  edge.source.dist + " + " + edge.weight;
+					newDist = this.relax(edge);
+					step.newDist = newDist;
+					edgeTo[edge.target.name] = edge;
+				}
+				step.curPath = this.constructPath(edge.target, edgeTo);
+				this.actions.push(step);
+			}.bind(this));
 		}
-
-
 	}
 });
 
@@ -256,7 +235,7 @@ app.AlgoView = Backbone.View.extend({
 		var algo = options.algorithm;
 		var AlgoView;
 		var viewMap = {"dijkstra": app.DijkstraView,
-					   "bellman-ford": app.DijkstraView,
+					   "bellman-ford": app.BellmanFordView,
 					   "toposort": app.DijkstraView};
 		if (!_.has(viewMap, algo)) {
 			throw new Error("Invalid algorithm name");

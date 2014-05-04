@@ -16,6 +16,8 @@ app.GraphView = Backbone.View.extend({
 			this.graphPromise.done(function(graph) {
 				this.renderGraph(graph);
 			}.bind(this));
+		} else {
+			this.renderGraph(this.model.graph);
 		}
 		return this;
 	},
@@ -209,9 +211,11 @@ app.GraphView = Backbone.View.extend({
  * 	 var graph = {links: {}, nodes: {}};
  *   links is an object keyed by edge id
  *   nodes is an object keyed by vertex name
- *   var links = {id: {source: node1, target: node2, weight: 42, id: id}, ... }
+ *   var links = {id1: edge1, id2: edge2, ... }
+ *   var edge1 = {source: node1, target: node2, weight: 42, id: id1}
  *     source and target are actual references to node objects, (not labels!), id is an integer
- *   var nodes = {name: {adj: [], name: name}, ... }
+ *   var nodes = {name1: node1, name2: node2, ... }
+ *   var node1 = {adj: [edge5, edge6], name: name1}
  *     name is a string, adj is is a list of outgoing edges (again, we store object references)
  *
  *   Using string-valued names to keep track of vertices is often more convenient than
@@ -221,6 +225,7 @@ app.GraphModel = Backbone.Model.extend({
 	initialize: function(options) {
 		options = options || {};
 		var nVtxs = options.V || 7;
+		this.graph = {links: {}, nodes: {}};
 		this.masterModel = options.masterModel || new Backbone.Model({V: 4});
 		this.listenTo(this.masterModel, "change:V", function() {
 			this.set("V", this.masterModel.get("V"));
@@ -228,9 +233,11 @@ app.GraphModel = Backbone.Model.extend({
 		this.makeWorstCaseDijkstra(nVtxs);
 		Backbone.Model.prototype.initialize.apply(this, arguments);
 	},
+	V: function() { return _.size(this.graph.nodes); },
+	E: function() { return _.size(this.graph.links); },
 	makeWorstCaseDijkstra: function(n) {
-		if (n < 2) { this.graph = null; }
-		var graph = {links: {}, nodes: {}};
+		var graph = this.graph = {links: {}, nodes: {}};
+		if (n < 2) { return; }
 		var node, link;
 		var curId = 0;
 		var srcNode = {adj: [], name: "0"};
@@ -248,6 +255,5 @@ app.GraphModel = Backbone.Model.extend({
 				graph.links[link.id] = link;
 			}
 		}
-		this.graph = graph;
 	}
 });
