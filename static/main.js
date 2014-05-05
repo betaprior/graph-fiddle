@@ -40,17 +40,21 @@ app.GraphControlsView = Backbone.View.extend({
 	// template: 'Number of vertices: <input type="text" id="spinner" value="6" style="width: 80px;" />',
 	_bindSpinnerArrows: function() {
 		var $spinner = this.$(".spinner input");
+		// need to return false from handlers, otherwise bootstrap
+		// will try to submit the form and reload the page
 		$(".spinner .btn:first-of-type").on("click", function() {
 			if (this._getVal() < this.max) {
 				$spinner.val(this._getVal() + 1);
 				this.model.set("V", this._getVal());
 			}
+			return false;
 		}.bind(this));
 		$(".spinner .btn:last-of-type").on("click", function() {
 			if (this._getVal() > this.min) {
 				$spinner.val(this._getVal() - 1);
 				this.model.set("V", this._getVal());
 			}
+			return false;
 		}.bind(this));
 	},
 	_initSpinner: function() {
@@ -97,6 +101,7 @@ app.GraphControlsView = Backbone.View.extend({
 		this.$spinner = this.$(".spinner input");
 		this._initSpinner();
 		this.$spinner.val(this.model.get("V"));
+		return this;
 	}
 });
 
@@ -219,6 +224,7 @@ app.BellmanFordView = app.GraphSimulationView.extend({
 		var graph = this.model.graph;
 		var V = this.model.V();
 		var E = this.model.E();
+		this.actions = [];
 		this.initializeDistViz(graph, source);
 		var edgeTo = {};
 		for (var i = 0; i < V; ++i) {
@@ -269,6 +275,7 @@ app.TopoSortSsspView = app.GraphSimulationView.extend({
 		// instance variables
 		var graph = this.model.graph;
 		this.initializeDistViz(graph, source);
+		this.actions = [];
 		var edgeTo = {};
 		var topoNodes = this.topoSort(graph, this.source);
 		_.each(topoNodes, function(node) {
@@ -325,6 +332,38 @@ app.AlgoView = Backbone.View.extend({
 	}
 });
 
+app.MasterControlsView = Backbone.View.extend({
+	initialize: function(options) {
+		this.animationModels = options.animationModels;
+		this.graphControls = new app.GraphControlsView({
+			el: "#spinner-form-group",
+			model: options.masterGraphModel,
+			animationModels: options.animationModels
+		});
+		this.masterAnimationControls = new app.AnimationControlView({
+			el: "#play-controls-form-group",
+			model: options.masterAnimationControlsModel,
+			showOnly: ["play"]
+		});
+		this.listenTo(options.animationModels, "change", this.stateHandler);
+	},
+	stateHandler: function(model, val, options) {
+		if (model.get("status") !== "playing") {
+			var allStopped = this.animationModels.every(function(m) {
+				return m.get("status") !== "playing";
+			});
+			if (allStopped) {
+				this.masterAnimationControls.model.set("status", "paused");
+			}
+		}
+	},
+	render: function() {
+		this.graphControls.render();
+		this.masterAnimationControls.render();
+		return this;
+	}
+});
+
 app.MainView = Backbone.View.extend({
 	el: "#app-container",
 	initialize: function() {
@@ -334,11 +373,11 @@ app.MainView = Backbone.View.extend({
 		var animationModels = new Backbone.Collection();
 		var graphMasterModel = new app.GraphModel({V: 6});
 		var masterAnimationControlsModel = new Backbone.Model({status: "paused"});
-		this.graphControls = new app.GraphControlsView({model: graphMasterModel,
-														animationModels: animationModels});
-		this.masterAnimationControls = new app.AnimationControlView(
-			{el: "#play-controls-form-group", model: masterAnimationControlsModel, showOnly: ["play"]}
-		);
+		this.masterControlsView = new app.MasterControlsView({
+			masterGraphModel: graphMasterModel,
+			masterAnimationControlsModel: masterAnimationControlsModel,
+			animationModels: animationModels
+		});
 		_(algos).each(function(x) {
 			var animationControlsModel = new Backbone.Model({status: "paused", req_steps: 0});
 			var graphModel = new app.GraphModel({V: 6, masterModel: graphMasterModel});
@@ -352,13 +391,12 @@ app.MainView = Backbone.View.extend({
 		}.bind(this));
 	},
 	render: function() {
+		this.masterControlsView.render();
 		_(this.algoViews).each(function(x) {
 			x.render();
 		});
 		// this.$("#graph-controls-container").append(this.graphControls.$el);
-		this.graphControls.render();
 		// this.$("#graph-controls-container").append(this.masterAnimationControls.$el);
-		this.masterAnimationControls.render();
 		// this.$("#animation-controls-container").append(this.playButton.$el);
 		// this.playButton.render();
 		// this.$("#dijkstra-container").append(this.graphView.$el);
