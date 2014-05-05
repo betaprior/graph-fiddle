@@ -26,17 +26,22 @@
 <body>
   <div id="app-container" class="container">
     <h1>Worst. Dijkstra. Ever.</h1>
-    <div id="graph-controls-container"></div>
+    <div id="graph-controls-container">
+      <form class="form-inline controls-set global-controls" role="form">
+        <div class="form-group" id="spinner-form-group"></div>
+        <div class="form-group" id="play-controls-form-group"></div>
+      </form>
+    </div>
     <div class="row" id="algo-view-container">
       <div class="col-md-6" id="dijkstra-container">
         <div class="animation-controls-container"></div>
         <div class="graph-container"></div>
       </div>
-      <div class="col-md-6" id="bellman-ford-container">
+      <div class="col-md-6 container" id="bellman-ford-container">
         <div class="animation-controls-container"></div>
         <div class="graph-container"></div>
       </div>
-      <div class="col-md-4" id="toposort-container">
+      <div class="col-md-6" id="toposort-container">
         <div class="animation-controls-container"></div>
         <div class="graph-container"></div>
       </div>

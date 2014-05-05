@@ -25,7 +25,9 @@ app.PlayPauseButton = Backbone.View.extend({
 });
 
 app.GraphControlsView = Backbone.View.extend({
-	template: 'Number of vertices: \
+	el: "#spinner-form-group",
+	template: '\
+	    <label>Number of vertices:</label>\
     <div class="input-group spinner">\
     <input type="text" class="form-control" value="6">\
       <div class="input-group-btn-vertical">\
@@ -100,13 +102,23 @@ app.GraphControlsView = Backbone.View.extend({
 
 app.AnimationControlView = Backbone.View.extend({
 	template: '<a id="play" class="btn btn-default"><span class="fa fa-play"></span> <span class="mylabel">Run</span></a><a id="step-back" class="btn btn-default"><span class="fa fa-step-backward"></span></a><a id="step-fwd" class="btn btn-default"><span class="fa fa-step-forward"></span></a>',
-	initialize: function() {
+	initialize: function(options) {
+		this.options = options || {};
 		this.model.set("status", "new");
 		this.model.on('change:status', this.render, this);
 		Backbone.View.prototype.initialize.apply(this, arguments);
 	},
+	_selectivelyDisplayControls: function() {
+		if (this.options.showOnly) {
+			this.$(".btn").css("display", "none");
+			_.each(this.options.showOnly, function(id) {
+				this.$("#" + id).css("display", "");
+			}.bind(this));
+		}
+	},
 	render: function(){
 		this.$el.html(this.template);
+		this._selectivelyDisplayControls();
 		this.$("span.fa").removeClass("fa-play fa-pause");
 		this.$("#play span.fa").addClass('fa-' + (this.isPlaying() ? 'pause' : 'play'));
 		this.$("span.mylabel").text(this.isPlaying() ? " Pause" : " Run");
@@ -229,6 +241,56 @@ app.BellmanFordView = app.GraphSimulationView.extend({
 	}
 });
 
+app.TopoSortSsspView = app.GraphSimulationView.extend({
+	initialize: function() {
+		app.GraphSimulationView.prototype.initialize.apply(this, arguments);
+	},
+	render: function() {
+		this.renderGraph(this.model.graph);
+		this.runTopoSortSsspViz(this.source, this.target);
+		return this;
+	},
+	topoSort: function(graph, startName) {
+		var sorted = [];
+		var dfs = function(fromNode) {
+			if (fromNode.marked) { return; }
+			fromNode.marked = true;
+			for (var i = 0; i < fromNode.adj.length; i++) {
+				dfs(fromNode.adj[i].target);
+			}
+			sorted.push(fromNode);
+		};
+		dfs(graph.nodes[startName]);
+		sorted.reverse();
+		return sorted;
+	},
+	runTopoSortSsspViz: function(source, target) {
+		//TODO: this and elsewhere: remove source and target as fn arguments in favor of
+		// instance variables
+		var graph = this.model.graph;
+		this.initializeDistViz(graph, source);
+		var edgeTo = {};
+		var topoNodes = this.topoSort(graph, this.source);
+		_.each(topoNodes, function(node) {
+			_.each(node.adj, function(edge) {
+				var newDist = edge.target.dist;
+				var step = {edge: edge, sourceDist: edge.source.dist, newDist: newDist,
+							oldDist: edge.target.dist,
+							curDist: graph.nodes[this.target].dist, relaxing: false};
+				if (this.isTense(edge)) {
+					step.relaxing = true;
+					step.debug = "relax : + " +  edge.target.dist + " > " +  edge.source.dist + " + " + edge.weight;
+					newDist = this.relax(edge);
+					step.newDist = newDist;
+					edgeTo[edge.target.name] = edge;
+				}
+				step.curPath = this.constructPath(edge.target, edgeTo);
+				this.actions.push(step);
+			}.bind(this));
+		}.bind(this));
+	}
+});
+
 app.AlgoView = Backbone.View.extend({
 	initialize: function(options) {
 		options = options || {};
@@ -236,13 +298,19 @@ app.AlgoView = Backbone.View.extend({
 		var AlgoView;
 		var viewMap = {"dijkstra": app.DijkstraView,
 					   "bellman-ford": app.BellmanFordView,
-					   "toposort": app.DijkstraView};
+					   "toposort": app.TopoSortSsspView};
 		if (!_.has(viewMap, algo)) {
 			throw new Error("Invalid algorithm name");
 		} else {
 			AlgoView = viewMap[algo];
 		}
-		this.animationControlsModel = options.animationControlsModel || new Backbone.Model({status: "paused", req_steps: 0});
+		this.animationControlsModel = options.animationControlsModel;
+		this.masterAnimationControlsModel = options.masterAnimationControlsModel;
+		this.listenTo(this.masterAnimationControlsModel, "change:status", function() {
+			var status = this.animationControlsModel.get("status");
+			var masterStatus = this.masterAnimationControlsModel.get("status");
+			this.animationControlsModel.set("status", masterStatus);
+		});
 		this.graphModel = options.graphModel || new app.GraphModel({V: 6});
 		this.playButton = new app.AnimationControlView({model: this.animationControlsModel});
 		this.graphView  = new AlgoView({model: this.graphModel,
@@ -260,32 +328,37 @@ app.AlgoView = Backbone.View.extend({
 app.MainView = Backbone.View.extend({
 	el: "#app-container",
 	initialize: function() {
-		var algos = ["dijkstra", "bellman-ford"];
+		var algos = ["dijkstra", "bellman-ford", "toposort"];
 		this.algoViews = [];
 		var graphModels = new Backbone.Collection();
 		var animationModels = new Backbone.Collection();
 		var graphMasterModel = new app.GraphModel({V: 6});
+		var masterAnimationControlsModel = new Backbone.Model({status: "paused"});
+		this.graphControls = new app.GraphControlsView({model: graphMasterModel,
+														animationModels: animationModels});
+		this.masterAnimationControls = new app.AnimationControlView(
+			{el: "#play-controls-form-group", model: masterAnimationControlsModel, showOnly: ["play"]}
+		);
 		_(algos).each(function(x) {
 			var animationControlsModel = new Backbone.Model({status: "paused", req_steps: 0});
 			var graphModel = new app.GraphModel({V: 6, masterModel: graphMasterModel});
 			var view = new app.AlgoView({el: this.$("#" + x + "-container"), algorithm: x,
 										 animationControlsModel: animationControlsModel,
+										 masterAnimationControlsModel: masterAnimationControlsModel,
 										 graphModel: graphModel});
 			this.algoViews.push(view);
 			graphModels.add(graphModel);
 			animationModels.add(animationControlsModel);
 		}.bind(this));
-
-		this.graphControls = new app.GraphControlsView({model: graphMasterModel,
-														animationModels: animationModels});
-
 	},
 	render: function() {
 		_(this.algoViews).each(function(x) {
 			x.render();
 		});
-		this.$("#graph-controls-container").append(this.graphControls.$el);
+		// this.$("#graph-controls-container").append(this.graphControls.$el);
 		this.graphControls.render();
+		// this.$("#graph-controls-container").append(this.masterAnimationControls.$el);
+		this.masterAnimationControls.render();
 		// this.$("#animation-controls-container").append(this.playButton.$el);
 		// this.playButton.render();
 		// this.$("#dijkstra-container").append(this.graphView.$el);
