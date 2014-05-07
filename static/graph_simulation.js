@@ -17,6 +17,8 @@ app.GraphSimulationView = app.GraphView.extend({
 	_registerEvents: function() {
 		this.listenTo(this.model, "change:V", function() {
 			this.model.makeWorstCaseDijkstra(this.model.get("V"));
+			this.actions = [];
+			this.next_step = 0;
 			this.render();
 		});
 		this.listenTo(this.animationModel, "change:status", function() {
@@ -74,7 +76,10 @@ app.GraphSimulationView = app.GraphView.extend({
 		options = options || {};
 		var d3nodes = this.d3el.selectAll("[id^=node]");
 		if (d3nodes.select("tspan#new").empty()) {
-			d3nodes.select("text").html('<tspan id="old"></tspan><tspan id="spc" xml:space="preserve"></tspan><tspan id="new"></tspan>');
+			var d3text = d3nodes.select("text");
+			d3text.append("tspan").attr("id", "old");
+			d3text.append("tspan").attr({"id": "spc", "xml:space": "preserve"});
+			d3text.append("tspan").attr("id", "new");
 		}
 		var selNew = d3nodes.select("text > tspan#new");
 		var selOld = d3nodes.select("text > tspan#old");

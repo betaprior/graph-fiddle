@@ -313,11 +313,6 @@ app.AlgoView = Backbone.View.extend({
 		}
 		this.animationControlsModel = options.animationControlsModel;
 		this.masterAnimationControlsModel = options.masterAnimationControlsModel;
-		this.listenTo(this.masterAnimationControlsModel, "change:status", function() {
-			var status = this.animationControlsModel.get("status");
-			var masterStatus = this.masterAnimationControlsModel.get("status");
-			this.animationControlsModel.set("status", masterStatus);
-		});
 		this.graphModel = options.graphModel || new app.GraphModel({V: 6});
 		this.playButton = new app.AnimationControlView({model: this.animationControlsModel});
 		this.graphView  = new AlgoView({model: this.graphModel,
@@ -335,6 +330,7 @@ app.AlgoView = Backbone.View.extend({
 app.MasterControlsView = Backbone.View.extend({
 	initialize: function(options) {
 		this.animationModels = options.animationModels;
+		this.masterAnimationControlsModel = options.masterAnimationControlsModel;
 		this.graphControls = new app.GraphControlsView({
 			el: "#spinner-form-group",
 			model: options.masterGraphModel,
@@ -345,14 +341,42 @@ app.MasterControlsView = Backbone.View.extend({
 			model: options.masterAnimationControlsModel,
 			showOnly: ["play"]
 		});
-		this.listenTo(options.animationModels, "change", this.stateHandler);
+		this.listenTo(this.animationModels, "change:status", this.stateHandler);
+		this.listenTo(this.masterAnimationControlsModel, "change:status", this.masterStateHandler);
 	},
-	stateHandler: function(model, val, options) {
-		if (model.get("status") !== "playing") {
-			var allStopped = this.animationModels.every(function(m) {
+	allStopped: function() {
+			return this.animationModels.every(function(m) {
 				return m.get("status") !== "playing";
 			});
-			if (allStopped) {
+	},
+	allFinished: function() {
+			return this.animationModels.every(function(m) {
+				return m.get("status") === "finished";
+			});
+	},
+	masterStateHandler: function(model, val, options) {
+		var masterStatus = this.masterAnimationControlsModel.get("status");
+		if (masterStatus === "paused" && this.allStopped()) {
+			// console.log("Change trigger: master state is changed to paused but everything is stopped; ignoring");
+		} else if (masterStatus === "playing" && this.allFinished()) {
+			this.animationModels.each(function(model) {
+				model.set("status", masterStatus);
+			});
+		} else {
+			this.animationModels.each(function(model) {
+				var status = model.get("status");
+				if (status !== "finished") {
+					// console.log("Setting status of model " + model.cid + " from " + status + " to " + masterStatus);
+					model.set("status", masterStatus);
+				}
+			});
+		}
+	},
+	stateHandler: function(model, val, options) {
+		// console.log("Handling state change of model " + model.cid + " from " + model.previous("status") + " to " + model.get("status"));
+		if (model.get("status") !== "playing") {
+			if (this.allStopped()) {
+				console.log("Setting master status to paused");
 				this.masterAnimationControls.model.set("status", "paused");
 			}
 		}

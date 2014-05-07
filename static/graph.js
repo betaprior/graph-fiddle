@@ -30,9 +30,8 @@ app.GraphView = Backbone.View.extend({
 	},
 	updateOp: function(status, style) {
 		status = status.replace("Infinity", "∞");
-		var text = this.d3el.selectAll("#status-op").select("text")
-				.html('<tspan id="annotation">Current comparison: </tspan><tspan id="comparison">'
-					  + status + '</tspan>');
+		var text = this.d3el.selectAll("#status-op").select("text");
+		text.select("#comparison").text(status);
 		if (style)
 			text.select("#comparison").style(style);
 	},
@@ -51,11 +50,16 @@ app.GraphView = Backbone.View.extend({
 			.append("text")
 			.attr("dy", ".35em");
 
-		svg.append("svg:g")
-			.attr("id", "status-op")
-			.attr("transform", "translate(180, 10)")
-			.append("text")
-			.attr("dy", ".35em");
+		var d3status_op_text = svg.append("svg:g")
+				.attr("id", "status-op")
+				.attr("transform", "translate(180, 10)")
+				.append("text")
+				.attr("dy", ".35em");
+		d3status_op_text.append("tspan")
+			.attr("id", "annotation")
+			.text("Current comparison: ");
+		d3status_op_text.append("tspan")
+			.attr("id", "comparison");
 
 		this.updateSteps(0);
 		this.updateDist("∞");
