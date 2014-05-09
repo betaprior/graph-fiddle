@@ -311,6 +311,8 @@ app.AlgoView = Backbone.View.extend({
 		} else {
 			AlgoView = viewMap[algo];
 		}
+		options.title = options.title || "";
+		this.$(".algo-container").attr('data-content', options.title);
 		this.animationControlsModel = options.animationControlsModel;
 		this.masterAnimationControlsModel = options.masterAnimationControlsModel;
 		this.graphModel = options.graphModel || new app.GraphModel({V: 6});
@@ -392,6 +394,11 @@ app.MainView = Backbone.View.extend({
 	el: "#app-container",
 	initialize: function() {
 		var algos = ["dijkstra", "bellman-ford", "toposort"];
+		var titles = {
+			"dijkstra": "Dijkstra's algorithm",
+			"bellman-ford": "Bellman-Ford (double for-loop)",
+			"toposort": "Relaxing edges in topological order"
+		};
 		this.algoViews = [];
 		var graphModels = new Backbone.Collection();
 		var animationModels = new Backbone.Collection();
@@ -405,10 +412,13 @@ app.MainView = Backbone.View.extend({
 		_(algos).each(function(x) {
 			var animationControlsModel = new Backbone.Model({status: "paused", req_steps: 0});
 			var graphModel = new app.GraphModel({V: 6, masterModel: graphMasterModel});
-			var view = new app.AlgoView({el: this.$("#" + x + "-container"), algorithm: x,
-										 animationControlsModel: animationControlsModel,
-										 masterAnimationControlsModel: masterAnimationControlsModel,
-										 graphModel: graphModel});
+			var view = new app.AlgoView({
+				el: this.$("#" + x + "-container"), algorithm: x,
+				animationControlsModel: animationControlsModel,
+				masterAnimationControlsModel: masterAnimationControlsModel,
+				graphModel: graphModel,
+				title: titles[x]
+			});
 			this.algoViews.push(view);
 			graphModels.add(graphModel);
 			animationModels.add(animationControlsModel);

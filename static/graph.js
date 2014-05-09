@@ -6,15 +6,17 @@ app.GraphView = Backbone.View.extend({
 		if (options.loadData) {
 			this.graphPromise = this.getData(options.loadData);
 		}
+		this.options = _.defaults(options, {nodeLabels: false});
 		this.width = 400;
 		this.height = 400;
 		this.nodeR = 20;
 		this.d3el = d3.select(this.el);
+		this.cola = cola;
 	},
 	render: function() {
 		if (this.graphPromise !== void 0) {
 			this.graphPromise.done(function(graph) {
-				this.renderGraph(graph);
+				this.renderGraph(graph, options);
 			}.bind(this));
 		} else {
 			this.renderGraph(this.model.graph);
@@ -37,6 +39,8 @@ app.GraphView = Backbone.View.extend({
 	},
 	renderGraph: function(graph) {
 		var svg = this.prepSvg(this.width, this.height);
+		var nodeValues = d3.values(graph.nodes);
+		var linkValues = d3.values(graph.links);
 
 		svg.append("svg:g")
 			.attr("id", "status-steps")
@@ -64,38 +68,57 @@ app.GraphView = Backbone.View.extend({
 		this.updateSteps(0);
 		this.updateDist("∞");
 
-		var force = d3.layout.force()
-				.nodes(d3.values(graph.nodes))
-				.links(d3.values(graph.links))
-				.size([this.width, this.height])
-				.linkDistance(260)
-				.charge(-100)
-				.on("tick", tick)
-				.start();
+		var cola = this.cola.d3adaptor()
+				.linkDistance(250)
+				.handleDisconnected(true)
+				.size([this.width, this.height]);
+		cola.nodes(nodeValues)
+			.links(linkValues)
+			.on("tick", tick)
+			.start(30);
 
 		// bind the edges
-		var path = svg.append("svg:g").selectAll("path")
-				.data(force.links())
-				.enter().append("svg:path")
+		var d3linksEnter = svg.append("svg:g").selectAll(".link")
+				.data(linkValues)
+				.enter();
+		var path = d3linksEnter.append("svg:path")
 				.attr("id", function(d) {
 					return "link" + d.id;
 				})
 				.attr("class", "link")
 				.attr("marker-end", "url(#end)");
+		var pathLabels = d3linksEnter.append("g")
+				.each(function(d) {
+					var dx = d.target.x - d.source.x,
+						dy = d.target.y - d.source.y,
+						dr = Math.sqrt(dx * dx + dy * dy);
+					var rhat_x = dx / dr, rhat_y = dy / dr;
+					var rnd = 0.1 * (Math.random() - 1);
+					d._labelOffsetX = rnd * dr * rhat_x;
+					d._labelOffsetY = rnd * dr * rhat_y;
+				})
+				.attr("transform", function(d) {
+					var x = d.source.x + (d.target.x - d.source.x) / 2 + d._labelOffsetX;
+					var y = d.source.y + (d.target.y - d.source.y) / 2 + d._labelOffsetY;
+					return "translate(" + x + "," + y + ")";
+				});
+
+		pathLabels.append("text")
+			.text(function(d) { return d.weight; });
 
 		// bind the nodes
 		var node = svg.selectAll(".node")
-				.data(force.nodes())
+				.data(nodeValues)
 				.enter().append("g")
 				.attr("id", function(d) {
 					return "node" + d.name;
 				})
 				.attr("class", "node")
-				.call(force.drag);
+				.call(cola.drag);
 
 		// add nodes
 		node.append("circle").attr("r", this.nodeR);
-		// add weights
+		// add path distance info text
 		node.append("text")
 			.attr("class", "dist")
 			.attr("text-anchor", "middle")
@@ -104,20 +127,38 @@ app.GraphView = Backbone.View.extend({
 			.text(function(d) { return d.dist; });
 
 		// add labels
-		node.append("text")
-			.attr("x", 22)
-			.attr("dy", ".35em")
-			.text(function(d) { return d.name; });
+		if (this.options.nodeLabels) {
+			node.append("text")
+				.attr("x", 22)
+				.attr("dy", ".35em")
+				.text(function(d) { return d.name; });
+		}
+
+		// style source and target nodes
+		this.d3el.select("#node" + this.source)
+			.classed({"source": true});
+		this.d3el.select("#node" + this.target)
+			.classed({"target": true});
+
 
 		// add the curvy lines
 		var that = this;
 		function tick() {
 			var nodeR = that.nodeR;
+			var rscale = 4;
+			var rhat_scale = rscale * 1.5;
+
+			pathLabels.attr("transform", function(d) {
+				var x = d.source.x + (d.target.x - d.source.x) / 2 + d._labelOffsetX;
+				var y = d.source.y + (d.target.y - d.source.y) / 2 + d._labelOffsetY;
+				return "translate(" + x + "," + y + ")";
+			});
+
 			path.attr("d", function(d) {
 				var dx = d.target.x - d.source.x,
 					dy = d.target.y - d.source.y,
-					dr = Math.sqrt(dx * dx + dy * dy);
-				var rhat_x = 1.5 * dx / dr, rhat_y = 1.5 * dy / dr;
+					dr = rscale * Math.sqrt(dx * dx + dy * dy);
+				var rhat_x = rhat_scale * dx / dr, rhat_y = rhat_scale * dy / dr;
 				var sx = d.source.x + nodeR * rhat_x,
 					sy = d.source.y + nodeR * rhat_y,
 					tx = d.target.x - nodeR * rhat_x,
@@ -133,13 +174,6 @@ app.GraphView = Backbone.View.extend({
 			node.attr("transform", function(d) {
 				return "translate(" + d.x + "," + d.y + ")";
 			});
-		}
-
-		// cool down the force layout
-		var k = 0;
-		while ((force.alpha() > 1e-2) && (k < 150)) {
-			force.tick();
-			k = k + 1;
 		}
 	},
 	// name: marker name that will be used to assign lines to markers:
@@ -211,7 +245,8 @@ app.GraphView = Backbone.View.extend({
 	}
 });
 
-/* Graph objects are defined as follows:
+/**
+ * Graph objects are defined as follows:
  * 	 var graph = {links: {}, nodes: {}};
  *   links is an object keyed by edge id
  *   nodes is an object keyed by vertex name

@@ -83,8 +83,10 @@ app.GraphSimulationView = app.GraphView.extend({
 		}
 		var selNew = d3nodes.select("text > tspan#new");
 		var selOld = d3nodes.select("text > tspan#old");
+		var selSpc = d3nodes.select("text > tspan#spc");
 
 		selOld.text("");
+		selSpc.text("");
 		selNew.text(function(d) {
 			if (options.fromData) {
 				return d.dist === Infinity ? '∞' : d.dist;

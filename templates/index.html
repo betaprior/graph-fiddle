@@ -8,7 +8,8 @@
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/bootstrap.min.css') }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/font-awesome.min.css') }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/application.css') }}"/>
-    <script type=text/javascript>
+    <!-- <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/WebCola/style.css') }}"/> -->
+ <script type=text/javascript>
       $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
     </script>
     <script type=text/javascript src="{{url_for('static', filename='lib/jquery.min.js') }}"></script>
@@ -18,7 +19,8 @@
     <script type=text/javascript src="{{url_for('static', filename='lib/underscore-min.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='lib/backbone-min.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='lib/d3.v3.min.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='lib/cola.v2.min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/WebCola/src/d3adaptor.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/WebCola/cola.v3.min.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='graph.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='graph_simulation.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='main.js') }}"></script>
@@ -34,16 +36,28 @@
     </div>
     <div class="row" id="algo-view-container">
       <div class="col-md-6" id="dijkstra-container">
-        <div class="animation-controls-container"></div>
-        <div class="graph-container"></div>
+        <div class="algo-container"> <!-- container with the border -->
+          <div class="view-wrapper"> <!-- shrink-wrapped inline block -->
+            <div class="animation-controls-container"></div>
+            <div class="graph-container"></div>
+          </div>
+        </div>
       </div>
-      <div class="col-md-6 container" id="bellman-ford-container">
-        <div class="animation-controls-container"></div>
-        <div class="graph-container"></div>
+      <div class="col-md-6" id="bellman-ford-container">
+        <div class="algo-container">
+          <div class="view-wrapper">
+            <div class="animation-controls-container"></div>
+            <div class="graph-container"></div>
+          </div>
+        </div>
       </div>
       <div class="col-md-6" id="toposort-container">
-        <div class="animation-controls-container"></div>
-        <div class="graph-container"></div>
+        <div class="algo-container">
+          <div class="view-wrapper">
+            <div class="animation-controls-container"></div>
+            <div class="graph-container"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
