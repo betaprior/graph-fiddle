@@ -111,7 +111,7 @@ app.GraphView = Backbone.View.extend({
 				.data(nodeValues)
 				.enter().append("g")
 				.attr("id", function(d) {
-					return "node" + d.name;
+					return "node" + d.id;
 				})
 				.attr("class", "node")
 				.call(cola.drag);
@@ -212,6 +212,7 @@ app.GraphView = Backbone.View.extend({
 		var promise = $.Deferred();
 		var graph = {links: {}, nodes: {}};
 		graph.edges = graph.links; graph.vertices = graph.nodes; // aliases
+		var idMapping = {}; // name to ID mapping for nodes
 		d3.text(url, function(error, data) {
 			if (error) {
 				promise.reject();
@@ -220,23 +221,25 @@ app.GraphView = Backbone.View.extend({
 			var lines = data.split("\n");
 			graph.V = +$.trim(lines[0]);
 			graph.E = +$.trim(lines[1]);
-			var linkId = 0;
+			var linkId = 0, nodeId = 0;
 			_(lines.slice(2)).each(function(x) {
 				var fields = $.trim(x).split(/\s+/);
 				if (fields.length < 3) return;
 				var source = fields[0];
 				var target = fields[1];
+				var sourceId = source in idMapping ? source : nodeId++;
+				var targetId = target in idMapping ? target : nodeId++;
 				var weight = +fields[2];
 				var link = {}; // temporary link object
 				var nodes = graph.nodes;
-				link.source = nodes[source] || (nodes[source] = {name: source});
-				link.target = nodes[target] || (nodes[target] = {name: target});
+				link.source = nodes[sourceId] || (nodes[sourceId] = {name: source, id: sourceId});
+				link.target = nodes[targetId] || (nodes[targetId] = {name: target, id: targetId});
 				link.weight = weight;
 				link.id = linkId;
 				graph.links[linkId] = link;
-				if (!nodes[source].adj) { nodes[source].adj = []; }
-				if (!nodes[target].adj) { nodes[target].adj = []; }
-				nodes[source].adj.push(link);
+				if (!nodes[sourceId].adj) { nodes[sourceId].adj = []; }
+				if (!nodes[targetId].adj) { nodes[targetId].adj = []; }
+				nodes[sourceId].adj.push(link);
 				linkId++;
 			});
 			promise.resolve(graph);
@@ -278,19 +281,20 @@ app.GraphModel = Backbone.Model.extend({
 		var graph = this.graph = {links: {}, nodes: {}};
 		if (n < 2) { return; }
 		var node, link;
-		var curId = 0;
-		var srcNode = {adj: [], name: "0"};
-		graph.nodes[srcNode.name] = srcNode;
-		for (var i = 1; i < n; ++i) {
-			node = {adj: [], name: String(i)};
-			graph.nodes[node.name] = node;
-			link = {source: srcNode, target: node, weight: i - 1, id: curId++};
-			graph.nodes[srcNode.name].adj.push(link);
+		var curLinkId = 0;
+		var i = 0;
+		var srcNode = {adj: [], id: i, name: String(i)};
+		graph.nodes[srcNode.id] = srcNode;
+		for (i = 1; i < n; ++i) {
+			node = {adj: [], id: i, name: String(i)};
+			graph.nodes[node.id] = node;
+			link = {source: srcNode, target: node, weight: i - 1, id: curLinkId++};
+			graph.nodes[srcNode.id].adj.push(link);
 			graph.links[link.id] = link;
 			for (var j = i - 1; j > 0; --j) {
 				var weight = -Math.pow(2, i - 2) - i + j;
-				link = {source: node, target: graph.nodes[String(j)], weight: weight, id: curId++};
-				graph.nodes[link.source.name].adj.push(link);
+				link = {source: node, target: graph.nodes[String(j)], weight: weight, id: curLinkId++};
+				graph.nodes[link.source.id].adj.push(link);
 				graph.links[link.id] = link;
 			}
 		}

@@ -53,7 +53,7 @@ app.GraphSimulationView = app.GraphView.extend({
 		var dist = step.newDist;
 		var oldDist = step.oldDist;
 		var d3el = this.d3el;
-		var sel = d3el.selectAll("#node" + node.name).select("text");
+		var sel = d3el.selectAll("#node" + node.id).select("text");
 		if (dist === null) {
 			dist = sel.datum().dist;
 		}
@@ -121,14 +121,14 @@ app.GraphSimulationView = app.GraphView.extend({
 	pathToString: function(path) {
 		var sbuf = [];
 		_(path).each(function(x) {
-			sbuf.push(x.source.name + "->" + x.target.name + ";");
+			sbuf.push(x.source.id + "->" + x.target.id + ";");
 		});
 		return sbuf.join(" ");
 	},
 
 	constructPath: function(startNode, edgeTo) {
 		var path = [], edge;
-		while ((edge = edgeTo[startNode.name])) {
+		while ((edge = edgeTo[startNode.id])) {
 			path.push(edge);
 			startNode = edge.source;
 		}
@@ -150,7 +150,7 @@ app.GraphSimulationView = app.GraphView.extend({
 		// d3el.selectAll("text.dist > tspan#old").text("");
 		this.displayAllDistances();
 		d3el.selectAll("#link" + step.edge.id).classed("visiting", true);
-		var curNode = d3el.selectAll("#node" + step.edge.target.name);
+		var curNode = d3el.selectAll("#node" + step.edge.target.id);
 		curNode.classed("visiting", true);
 
 		// highlight currently active path:
@@ -162,7 +162,7 @@ app.GraphSimulationView = app.GraphView.extend({
 		if (step.relaxing) {
 			this.updateOp(step.sourceDist + " + " + step.edge.weight + " < " + step.oldDist,
 						  {fill: "green"});
-			if (step.edge.target.name === this.target) {
+			if (step.edge.target.id === this.target) {
 				this.updateDist(step.newDist);
 			}
 			this.showNodeDist(step, {cls: "relaxing", showOld: true});

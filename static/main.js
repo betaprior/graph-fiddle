@@ -194,10 +194,10 @@ app.DijkstraView = app.GraphSimulationView.extend({
 							curDist: graph.nodes[this.target].dist, relaxing: false};
 				if (this.isTense(edge)) {
 					step.relaxing = true;
-					step.debug = "relax : + " +  edge.target.dist + " > " +  edge.source.dist + " + " + edge.weight;
+					step.debug = "relax : " + edge.target.dist + " > " + edge.source.dist + " + " + edge.weight;
 					newDist = this.relax(edge);
 					step.newDist = newDist;
-					edgeTo[edge.target.name] = edge;
+					edgeTo[edge.target.id] = edge;
 					if (edge.target.pqHandle) {
 						pq.changeKey(edge.target.pqHandle, newDist);
 					} else {
@@ -238,7 +238,7 @@ app.BellmanFordView = app.GraphSimulationView.extend({
 					step.debug = "relax : + " +  edge.target.dist + " > " +  edge.source.dist + " + " + edge.weight;
 					newDist = this.relax(edge);
 					step.newDist = newDist;
-					edgeTo[edge.target.name] = edge;
+					edgeTo[edge.target.id] = edge;
 				}
 				step.curPath = this.constructPath(edge.target, edgeTo);
 				this.actions.push(step);
@@ -289,7 +289,7 @@ app.TopoSortSsspView = app.GraphSimulationView.extend({
 					step.debug = "relax : + " +  edge.target.dist + " > " +  edge.source.dist + " + " + edge.weight;
 					newDist = this.relax(edge);
 					step.newDist = newDist;
-					edgeTo[edge.target.name] = edge;
+					edgeTo[edge.target.id] = edge;
 				}
 				step.curPath = this.constructPath(edge.target, edgeTo);
 				this.actions.push(step);
