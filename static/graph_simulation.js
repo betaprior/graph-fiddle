@@ -4,8 +4,8 @@ app.GraphSimulationView = app.GraphView.extend({
 
 	initialize: function(options) {
 		options = options || {};
-		this.source = options.source || "0";
-		this.target = options.target || "1";
+		this.source = this.model.graph.nodes[options.sourceId || 0];
+		this.target = this.model.graph.nodes[options.targetId || 1];
 		this.timeout = options.timeout || 1000;
 		this.animationModel = options.animationModel;
 		this.next_step = 0;
@@ -25,7 +25,7 @@ app.GraphSimulationView = app.GraphView.extend({
 			if (this.animationModel.get("status") === "playing") {
 				var ps = this.animationModel.previous("status");
 				if (ps === "new" || ps === "finished") {
-					this.initializeDistViz(this.model.graph, this.source);
+					this.initializeDistViz(this.model.graph, this.source.id);
 					this.next_step = 0;
 				}
 				this.runActions(this.next_step);
@@ -37,13 +37,35 @@ app.GraphSimulationView = app.GraphView.extend({
 			// of the simulation is a no-op (or finalizes the simulation)
 			// TODO: hitting "step back" at the beginning resets simulation
 			if (this.animationModel.get("status") === "finished" && this.animationModel.get("req_steps") === 1) {
-				this.initializeDistViz(this.model.graph, this.source);
+				this.initializeDistViz(this.model.graph, this.source.id);
 				this.next_step = 0;
 			}
 			this.animationModel.set("status", "paused");
 			this.runStep(this.next_step - 1 + this.animationModel.get("req_steps"));
 			this.animationModel.set("req_steps", 0);
 		});
+	},
+
+	visualizeDistances: function(step, prevStep, options) {
+		var d3el = this.d3el;
+		d3el.selectAll(".node").select("text")
+			.each(function(d) {
+				var oldText = "";
+				var spc = "";
+				if (prevStep) {
+					var prevDist = prevStep.graph.nodes[d.id].dist;
+					oldText = prevDist === Infinity ? '∞' : String(prevDist);
+				}
+				var curDist = step.graph.nodes[d.id].dist;
+				var curText = curDist === Infinity ? '∞' : String(curDist);
+				if (options.showOld && oldText && oldText !== curText) {
+					spc = " ";
+					d3.select(this).select("#old").text(oldText).attr("text-decoration", "line-through");
+				}
+				d3.select(this).select("#spc").text(spc);
+				d3.select(this).select("#new").text(curText);
+				// if (options.cls) { d3.select(this).select("#new").classed(cls, true); }
+			});
 	},
 
 	showNodeDist: function(step, options) {
@@ -126,6 +148,8 @@ app.GraphSimulationView = app.GraphView.extend({
 		return sbuf.join(" ");
 	},
 
+	// return list of edges in path given a start node and edgeTo hash
+	// edgeTo is a hash of nodes keyed by name
 	constructPath: function(startNode, edgeTo) {
 		var path = [], edge;
 		while ((edge = edgeTo[startNode.id])) {
@@ -136,12 +160,135 @@ app.GraphSimulationView = app.GraphView.extend({
 		return path;
 	},
 
+	// {text: "foo"} option makes this function ignore the first argument and create
+	// a label with prescribed text
+	makeStepAnnotation: function(edge, options) {
+		options = options || {};
+		var label = "Current step:";
+		if (options.text !== void 0) {
+			return {
+				label: label,
+				text: options.text,
+				style: options.style
+			};
+		}
+		if (this.isTense(edge)) {
+			return {
+				label: label,
+				text: (edge.source.dist + " + " + edge.weight + " < " + edge.target.dist).replace("Infinity", "∞"),
+				style: {fill: "green"}
+			};
+		} else {
+			return {
+				label: label,
+				text: (edge.source.dist + " + " + edge.weight + " >= " + edge.target.dist).replace("Infinity", "∞"),
+				style: {fill: "red"}
+			};
+		}
+	},
+
+	makeShortestPathAnnotation: function(curDist) {
+		return {
+			label: "Shortest path:",
+			text: String(curDist).replace("Infinity", "∞")
+		};
+	},
+
+	makeStepNumberAnnotation: function(num) {
+		return {
+			label: "Steps:",
+			text: String(num)
+		};
+	},
+
+	initializeAnnotations: function(annotations) {
+		annotations = [this.makeStepNumberAnnotation(0)].concat(annotations);
+		this.renderAnnotations(annotations);
+	},
+
+	/**
+	 * To visualize a step in a general graph traversal algorithm, we will store a copy
+	 * of a graph with every state. The state of every edge and node is recorded, along with
+	 * the annotations.
+	 */
+	visualizeStep: function(step) {
+		if (_.has(step, "debug")) { console.log(step.debug); }
+		// update step # annotation
+		var annotations = [this.makeStepNumberAnnotation(this.next_step)].concat(step.annotations);
+		this.renderAnnotations(annotations);
+		// var nodeValues = d3.values(step.graph.nodes);
+		// var linkValues = d3.values(step.graph.links);
+		var d3el = this.d3el;
+		// remove classes from previous steps
+		d3el.selectAll("[id^=link]").classed("visiting", false);
+		d3el.selectAll("[id^=link]").classed("active", false);
+		d3el.selectAll("[id^=node]").classed("visiting", false);
+		d3el.selectAll("[id^=link]").attr("marker-end", "url(#end)");
+		d3el.selectAll("text.dist").classed("relaxing", false);
+		// update all the distances
+		this.displayAllDistances(); // reset all the new/spc/old tspans
+		var prevStep = this.next_step - 2 >= 0 ? this.actions[this.next_step - 2] : null;
+		this.visualizeDistances(step, prevStep, {showOld: true});
+
+		// assign all the classes in accordance to passed graph status fields
+		// var getClassed = function(list) { //TODO: replace w/ for loop to avoid overhead
+		// 	return _.object(_(list).map(function(x) { return [x, true]; }));
+		// };
+		// d3el.selectAll("#link" + step.edge.id).classed("visiting", true);
+		d3el.selectAll(".link").attr("class", function(d) {
+			return d3.select(this).attr("class") + " " + step.graph.links[d.id].getStatus();
+		}).each(function(d) {
+			if (d3.select(this).classed("active")) {
+				d3.select(this).attr("marker-end", "url(#end-active)");
+			}
+		});
+
+		// d3el.selectAll(".link").each(function(d) {
+		// 	if (d3.select(this).classed("active")) {
+		// 		d3.select(this).attr("marker-end", "url(#end-active)");
+		// 	}
+		// });
+		d3el.selectAll(".node").attr("class", function(d) {
+			return d3.select(this).attr("class") + " " + step.graph.nodes[d.id].getStatus();
+		});
+
+		// var curNode = d3el.selectAll("#node" + step.edge.target.name);
+		// curNode.classed("visiting", true);
+
+		// // highlight currently active path:
+		// d3el.selectAll("[id^=link]").classed("active", false);
+		// _(step.curPath).each(function(edge) {
+		// 	d3el.selectAll("#link" + edge.id).classed("active", true);
+		// 	d3el.selectAll("#link" + edge.id).attr("marker-end", "url(#end-active)");
+		// });
+
+	},
+
+	recordStep: function(graph, annotations) {
+		var step = {graph: {}, annotations: annotations};
+		step.graph.links = _.clone(graph.links);
+		step.graph.nodes = _.clone(graph.nodes);
+		// TODO: graph copy method
+		_(step.graph.links).each(function(v, k) {
+			step.graph.links[k] = _.clone(graph.links[k]);
+		});
+		_(step.graph.nodes).each(function(v, k) {
+			step.graph.nodes[k] = _.clone(graph.nodes[k]);
+		});
+		// TODO: change these method names to copy status and clear status
+		this.resetStatus(step.graph, graph);
+		step.annotations = annotations;
+		this.actions.push(step);
+		// clear the graph status field
+		this.resetStatus(graph);
+	},
+
 	vizStep: function(step) {
 		var graph = this.model.graph;
 		this.updateSteps(this.next_step);
 		// this.updateDist(step.curDist);
 		console.log(step.debug);
-		console.log(graph.nodes[this.target]);
+		console.log(graph.nodes[this.target.id]);
 		var d3el = this.d3el;
 		d3el.selectAll("[id^=link]").classed("visiting", false);
 		d3el.selectAll("[id^=node]").classed("visiting", false);
@@ -162,7 +309,7 @@ app.GraphSimulationView = app.GraphView.extend({
 		if (step.relaxing) {
 			this.updateOp(step.sourceDist + " + " + step.edge.weight + " < " + step.oldDist,
 						  {fill: "green"});
-			if (step.edge.target.id === this.target) {
+			if (step.edge.target.id === this.target.id) {
 				this.updateDist(step.newDist);
 			}
 			this.showNodeDist(step, {cls: "relaxing", showOld: true});
@@ -173,6 +320,31 @@ app.GraphSimulationView = app.GraphView.extend({
 		}
 	},
 
+	resetStatus: function(graph, srcGraph) {
+		var setBlankStatus = function(x) { x.clearStatus(); };
+		var cloneNodeStatus = function(x) { x.copyStatus(srcGraph.nodes[x.id]); };
+		var cloneLinkStatus = function(x) { x.copyStatus(srcGraph.links[x.id]); };
+		_(graph.nodes).each(!srcGraph ? setBlankStatus : cloneNodeStatus);
+		_(graph.links).each(!srcGraph ? setBlankStatus : cloneLinkStatus);
+		// if (srcGraph) {
+		// 	_(graph.nodes).each(function(x) {
+		// 		x.copyStatus(srcGraph.nodes[x.id]);
+		// 	});
+		// 	_(graph.links).each(function(x) {
+		// 		x.copyStatus(srcGraph.links[x.id]);
+		// 	});
+		// } else {
+		// 	_(graph.nodes).each(function(x) {
+		// 		x.clearStatus();
+		// 	});
+		// 	_(graph.links).each(function(x) {
+		// 		x.clearStatus();
+		// 	});
+		// }
+
+
+	},
+
 	runStep: function(i) {
 		// bound the allowed steps
 		if (i >= this.actions.length) {
@@ -181,7 +353,8 @@ app.GraphSimulationView = app.GraphView.extend({
 			i = 0;
 		}
 		this.next_step = i + 1;
-		this.vizStep(this.actions[i]);
+		// this.vizStep(this.actions[i]);
+		this.visualizeStep(this.actions[i]);
 		if (i === this.actions.length - 1) {
 			this.animationModel.set("status", "finished");
 			// setTimeout(this.deselectAll, this.timeout);

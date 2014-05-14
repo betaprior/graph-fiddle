@@ -1,4 +1,5 @@
 var app = app || {}; // The Application
+app.util = app.util || {};
 
 app.PlayPauseButton = Backbone.View.extend({
 	tagName: "a",
@@ -171,41 +172,52 @@ app.DijkstraView = app.GraphSimulationView.extend({
 	},
 	render: function() {
 		this.renderGraph(this.model.graph);
+		this.resetStatus(this.model.graph);
 		this.runDijkstraViz(this.source, this.target);
 		return this;
 	},
 	runDijkstraViz: function(source, target) {
 		var graph = this.model.graph;
-		this.actions = [];
-		this.initializeDistViz(graph, source);
+		this.initializeDistViz(graph, source.id);
+		// source.addStickyStatus("source");
+		// target.addStickyStatus("target");
+		this.addNodeClass(source.id, "source");
+		this.addNodeClass(target.id, "target");
+
 		var edgeTo = {};
+		var curDist = graph.nodes[this.target.id].dist;
+		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
+		this.initializeAnnotations(annotations);
 		var pq = makeIndexedPQ();
-		var node = graph.nodes[source];
+		var node = graph.nodes[source.id];
 		node.pqHandle = pq.push(node, node.dist);
 		while (!pq.isEmpty()) {
 			var curNode = pq.deleteMin();
 			curNode.pqHandle = null;
 			for (var i = 0; i < curNode.adj.length; i++) {
-				// var edge = graph.links[curNode.adj[i]];
 				var edge = curNode.adj[i];
 				var newDist = edge.target.dist;
-				var step = {edge: edge, sourceDist: edge.source.dist, newDist: newDist,
-							oldDist: edge.target.dist,
-							curDist: graph.nodes[this.target].dist, relaxing: false};
+				annotations = [];
+				annotations.push(this.makeStepAnnotation(edge));
 				if (this.isTense(edge)) {
-					step.relaxing = true;
-					step.debug = "relax : " + edge.target.dist + " > " + edge.source.dist + " + " + edge.weight;
 					newDist = this.relax(edge);
-					step.newDist = newDist;
 					edgeTo[edge.target.id] = edge;
 					if (edge.target.pqHandle) {
 						pq.changeKey(edge.target.pqHandle, newDist);
 					} else {
 						edge.target.pqHandle = pq.push(edge.target, newDist);
 					}
+					if (edge.target.id === this.target.id) {
+						curDist = newDist;
+					}
 				}
-				step.curPath = this.constructPath(edge.target, edgeTo);
-				this.actions.push(step);
+				annotations.push(this.makeShortestPathAnnotation(curDist));
+				graph.links[edge.id].addStatus("visiting");
+				var curPath = this.constructPath(edge.target, edgeTo);
+				_(curPath).each(function(link) {
+					graph.links[link.id].addStatus("active");
+				});
+				this.recordStep(graph, annotations);
 			}
 		}
 	}
@@ -222,26 +234,33 @@ app.BellmanFordView = app.GraphSimulationView.extend({
 	},
 	runBellmanFordViz: function(source, target) {
 		var graph = this.model.graph;
+		this.addNodeClass(source.id, "source");
+		this.addNodeClass(target.id, "target");
 		var V = this.model.V();
 		var E = this.model.E();
-		this.actions = [];
-		this.initializeDistViz(graph, source);
+		this.initializeDistViz(graph, source.id);
 		var edgeTo = {};
+		var curDist = graph.nodes[this.target.id].dist;
+		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
+		this.initializeAnnotations(annotations);
 		for (var i = 0; i < V; ++i) {
 			_.each(graph.links, function(edge) {
-				var newDist = edge.target.dist;
-				var step = {edge: edge, sourceDist: edge.source.dist, newDist: newDist,
-							oldDist: edge.target.dist,
-							curDist: graph.nodes[this.target].dist, relaxing: false};
+				annotations = [];
+				annotations.push(this.makeStepAnnotation(edge));
 				if (this.isTense(edge)) {
-					step.relaxing = true;
-					step.debug = "relax : + " +  edge.target.dist + " > " +  edge.source.dist + " + " + edge.weight;
-					newDist = this.relax(edge);
-					step.newDist = newDist;
+					var newDist = this.relax(edge);
 					edgeTo[edge.target.id] = edge;
+					if (edge.target.id === this.target.id) {
+						curDist = newDist;
+					}
 				}
-				step.curPath = this.constructPath(edge.target, edgeTo);
-				this.actions.push(step);
+				annotations.push(this.makeShortestPathAnnotation(curDist));
+				var curPath = this.constructPath(edge.target, edgeTo);
+				graph.links[edge.id].addStatus("visiting");
+				_(curPath).each(function(link) {
+					graph.links[link.id].addStatus("active");
+				});
+				this.recordStep(graph, annotations);
 			}.bind(this));
 		}
 	}
@@ -256,7 +275,7 @@ app.TopoSortSsspView = app.GraphSimulationView.extend({
 		this.runTopoSortSsspViz(this.source, this.target);
 		return this;
 	},
-	topoSort: function(graph, startName) {
+	topoSort: function(graph, startId) {
 		var sorted = [];
 		var dfs = function(fromNode) {
 			if (fromNode.marked) { return; }
@@ -266,7 +285,7 @@ app.TopoSortSsspView = app.GraphSimulationView.extend({
 			}
 			sorted.push(fromNode);
 		};
-		dfs(graph.nodes[startName]);
+		dfs(graph.nodes[startId]);
 		sorted.reverse();
 		return sorted;
 	},
@@ -274,25 +293,35 @@ app.TopoSortSsspView = app.GraphSimulationView.extend({
 		//TODO: this and elsewhere: remove source and target as fn arguments in favor of
 		// instance variables
 		var graph = this.model.graph;
-		this.initializeDistViz(graph, source);
-		this.actions = [];
+		this.initializeDistViz(graph, source.id);
 		var edgeTo = {};
-		var topoNodes = this.topoSort(graph, this.source);
+
+		var curDist = graph.nodes[this.target.id].dist;
+		var topoNodes = this.topoSort(graph, this.source.id);
+		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
+		this.initializeAnnotations(annotations);
+
 		_.each(topoNodes, function(node) {
 			_.each(node.adj, function(edge) {
 				var newDist = edge.target.dist;
-				var step = {edge: edge, sourceDist: edge.source.dist, newDist: newDist,
-							oldDist: edge.target.dist,
-							curDist: graph.nodes[this.target].dist, relaxing: false};
+				// annotations[0] = this.makeStepAnnotation(edge);
+				annotations = [];
+				annotations.push(this.makeStepAnnotation(edge));
 				if (this.isTense(edge)) {
-					step.relaxing = true;
-					step.debug = "relax : + " +  edge.target.dist + " > " +  edge.source.dist + " + " + edge.weight;
 					newDist = this.relax(edge);
-					step.newDist = newDist;
+					if (edge.target.id === this.target.id) {
+						curDist = newDist;
+					}
 					edgeTo[edge.target.id] = edge;
 				}
-				step.curPath = this.constructPath(edge.target, edgeTo);
-				this.actions.push(step);
+				// annotations[1] = this.makeShortestPathAnnotation(curDist);
+				annotations.push(this.makeShortestPathAnnotation(curDist));
+				var curPath = this.constructPath(edge.target, edgeTo);
+				_(curPath).each(function(link) {
+					graph.links[link.id].addStatus("active");
+				});
+				this.recordStep(graph, annotations);
+				console.log("recording tep w/ path " + annotations[1].text);
 			}.bind(this));
 		}.bind(this));
 	}
@@ -394,6 +423,7 @@ app.MainView = Backbone.View.extend({
 	el: "#app-container",
 	initialize: function() {
 		var algos = ["dijkstra", "bellman-ford", "toposort"];
+		// var algos = ["dijkstra", "bellman-ford"];
 		var titles = {
 			"dijkstra": "Dijkstra's algorithm",
 			"bellman-ford": "Bellman-Ford (double for-loop)",
