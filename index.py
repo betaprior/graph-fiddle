@@ -3,6 +3,7 @@ from flask import request
 from flask import jsonify
 from flask import render_template
 from flask import make_response
+import re
 app = Flask(__name__)
 
 
@@ -10,6 +11,29 @@ app = Flask(__name__)
 def root():
 	return render_template('index.html')
 
+@app.route("/e/<string:algoname>")
+def get_algo_text(algoname):
+	algofile = "static/algorithms.js"
+	patt_start = "^\s*/\*\s*BEGIN\s+ALGORITHM\s+%s" % algoname
+	patt_end = "^\s*/\*\s*END\s+ALGORITHM"
+	linebuffer = []
+	with open(algofile, 'r') as f:
+		buffering = False
+		for line in f:
+			if re.match(patt_start, line):
+				buffering = True
+				continue
+			if buffering and re.match(patt_end, line):
+				buffering = False
+				break
+			if buffering:
+				linebuffer.append(line.rstrip())
+	return render_template('algocode', lines=linebuffer)
+
+@app.route("/testtemplate")
+def test_template():
+	lines = ["one", "two", "three"]
+	return render_template('algocode', lines=lines)
 
 @app.route("/test<string:num>")
 def numbered_test(num):
