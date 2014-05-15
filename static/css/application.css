@@ -186,3 +186,10 @@ div.algo-container::after {
     border-radius: 4px 0 4px 0;
     content: attr(data-content)
 }
+
+.modal.modal-wide .modal-dialog {
+  width: 90%;
+}
+.modal-wide .modal-body {
+  overflow-y: auto;
+}

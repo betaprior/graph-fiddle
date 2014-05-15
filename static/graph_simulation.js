@@ -25,7 +25,7 @@ app.GraphSimulationView = app.GraphView.extend({
 			if (this.animationModel.get("status") === "playing") {
 				var ps = this.animationModel.previous("status");
 				if (ps === "new" || ps === "finished") {
-					this.initializeDistViz(this.model.graph, this.source.id);
+					this.initializeDistances(this.model.graph, this.source.id);
 					this.next_step = 0;
 				}
 				this.runActions(this.next_step);
@@ -37,7 +37,7 @@ app.GraphSimulationView = app.GraphView.extend({
 			// of the simulation is a no-op (or finalizes the simulation)
 			// TODO: hitting "step back" at the beginning resets simulation
 			if (this.animationModel.get("status") === "finished" && this.animationModel.get("req_steps") === 1) {
-				this.initializeDistViz(this.model.graph, this.source.id);
+				this.initializeDistances(this.model.graph, this.source.id);
 				this.next_step = 0;
 			}
 			this.animationModel.set("status", "paused");
@@ -123,7 +123,7 @@ app.GraphSimulationView = app.GraphView.extend({
 		this.d3el.selectAll("text.dist").classed("relaxing", false);
 	},
 
-	initializeDistViz: function(graph, source) {
+	initializeDistances: function(graph, source) {
 		_(graph.nodes).each(function(x) {
 			x.dist = Infinity;
 		});

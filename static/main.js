@@ -145,188 +145,6 @@ app.AnimationControlView = Backbone.View.extend({
 	}
 });
 
-function makeIndexedPQ() {
-	var pq = {};
-	pq.q = [];
-	pq.isEmpty = function() { return _.size(pq.q) === 0; };
-	pq.push = function(x, priority) {
-		var obj = {v: x, p: priority};
-		pq.q.push(obj);
-		return obj;
-	};
-	pq.changeKey = function(handle, newKey) { handle.p = newKey; };
-	pq.deleteMin = function() {
-		var obj = _(pq.q).min(function(x) { return x.p; });
-		var i = _(pq.q).indexOf(obj);
-		pq.q.splice(i, 1);
-		return obj.v;
-	};
-	return pq;
-}
-
-
-
-app.DijkstraView = app.GraphSimulationView.extend({
-	initialize: function() {
-		app.GraphSimulationView.prototype.initialize.apply(this, arguments);
-	},
-	render: function() {
-		this.renderGraph(this.model.graph);
-		this.resetStatus(this.model.graph);
-		this.runDijkstraViz(this.source, this.target);
-		return this;
-	},
-	runDijkstraViz: function(source, target) {
-		var graph = this.model.graph;
-		this.initializeDistViz(graph, source.id);
-		// source.addStickyStatus("source");
-		// target.addStickyStatus("target");
-		this.addNodeClass(source.id, "source");
-		this.addNodeClass(target.id, "target");
-
-		var edgeTo = {};
-		var curDist = graph.nodes[this.target.id].dist;
-		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
-		this.initializeAnnotations(annotations);
-		var pq = makeIndexedPQ();
-		var node = graph.nodes[source.id];
-		node.pqHandle = pq.push(node, node.dist);
-		while (!pq.isEmpty()) {
-			var curNode = pq.deleteMin();
-			curNode.pqHandle = null;
-			for (var i = 0; i < curNode.adj.length; i++) {
-				var edge = curNode.adj[i];
-				var newDist = edge.target.dist;
-				annotations = [];
-				annotations.push(this.makeStepAnnotation(edge));
-				if (this.isTense(edge)) {
-					newDist = this.relax(edge);
-					edgeTo[edge.target.id] = edge;
-					if (edge.target.pqHandle) {
-						pq.changeKey(edge.target.pqHandle, newDist);
-					} else {
-						edge.target.pqHandle = pq.push(edge.target, newDist);
-					}
-					if (edge.target.id === this.target.id) {
-						curDist = newDist;
-					}
-				}
-				annotations.push(this.makeShortestPathAnnotation(curDist));
-				graph.links[edge.id].addStatus("visiting");
-				var curPath = this.constructPath(edge.target, edgeTo);
-				_(curPath).each(function(link) {
-					graph.links[link.id].addStatus("active");
-				});
-				this.recordStep(graph, annotations);
-			}
-		}
-	}
-});
-
-app.BellmanFordView = app.GraphSimulationView.extend({
-	initialize: function() {
-		app.GraphSimulationView.prototype.initialize.apply(this, arguments);
-	},
-	render: function() {
-		this.renderGraph(this.model.graph);
-		this.runBellmanFordViz(this.source, this.target);
-		return this;
-	},
-	runBellmanFordViz: function(source, target) {
-		var graph = this.model.graph;
-		this.addNodeClass(source.id, "source");
-		this.addNodeClass(target.id, "target");
-		var V = this.model.V();
-		var E = this.model.E();
-		this.initializeDistViz(graph, source.id);
-		var edgeTo = {};
-		var curDist = graph.nodes[this.target.id].dist;
-		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
-		this.initializeAnnotations(annotations);
-		for (var i = 0; i < V; ++i) {
-			_.each(graph.links, function(edge) {
-				annotations = [];
-				annotations.push(this.makeStepAnnotation(edge));
-				if (this.isTense(edge)) {
-					var newDist = this.relax(edge);
-					edgeTo[edge.target.id] = edge;
-					if (edge.target.id === this.target.id) {
-						curDist = newDist;
-					}
-				}
-				annotations.push(this.makeShortestPathAnnotation(curDist));
-				var curPath = this.constructPath(edge.target, edgeTo);
-				graph.links[edge.id].addStatus("visiting");
-				_(curPath).each(function(link) {
-					graph.links[link.id].addStatus("active");
-				});
-				this.recordStep(graph, annotations);
-			}.bind(this));
-		}
-	}
-});
-
-app.TopoSortSsspView = app.GraphSimulationView.extend({
-	initialize: function() {
-		app.GraphSimulationView.prototype.initialize.apply(this, arguments);
-	},
-	render: function() {
-		this.renderGraph(this.model.graph);
-		this.runTopoSortSsspViz(this.source, this.target);
-		return this;
-	},
-	topoSort: function(graph, startId) {
-		var sorted = [];
-		var dfs = function(fromNode) {
-			if (fromNode.marked) { return; }
-			fromNode.marked = true;
-			for (var i = 0; i < fromNode.adj.length; i++) {
-				dfs(fromNode.adj[i].target);
-			}
-			sorted.push(fromNode);
-		};
-		dfs(graph.nodes[startId]);
-		sorted.reverse();
-		return sorted;
-	},
-	runTopoSortSsspViz: function(source, target) {
-		//TODO: this and elsewhere: remove source and target as fn arguments in favor of
-		// instance variables
-		var graph = this.model.graph;
-		this.initializeDistViz(graph, source.id);
-		var edgeTo = {};
-
-		var curDist = graph.nodes[this.target.id].dist;
-		var topoNodes = this.topoSort(graph, this.source.id);
-		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
-		this.initializeAnnotations(annotations);
-
-		_.each(topoNodes, function(node) {
-			_.each(node.adj, function(edge) {
-				var newDist = edge.target.dist;
-				// annotations[0] = this.makeStepAnnotation(edge);
-				annotations = [];
-				annotations.push(this.makeStepAnnotation(edge));
-				if (this.isTense(edge)) {
-					newDist = this.relax(edge);
-					if (edge.target.id === this.target.id) {
-						curDist = newDist;
-					}
-					edgeTo[edge.target.id] = edge;
-				}
-				// annotations[1] = this.makeShortestPathAnnotation(curDist);
-				annotations.push(this.makeShortestPathAnnotation(curDist));
-				var curPath = this.constructPath(edge.target, edgeTo);
-				_(curPath).each(function(link) {
-					graph.links[link.id].addStatus("active");
-				});
-				this.recordStep(graph, annotations);
-				console.log("recording tep w/ path " + annotations[1].text);
-			}.bind(this));
-		}.bind(this));
-	}
-});
-
 app.AlgoView = Backbone.View.extend({
 	initialize: function(options) {
 		options = options || {};
@@ -342,6 +160,17 @@ app.AlgoView = Backbone.View.extend({
 		}
 		options.title = options.title || "";
 		this.$(".algo-container").attr('data-content', options.title);
+
+		var modalModel = new Backbone.Model({ title: 'Example Modal', body: 'Hello World' });
+
+		this.$(".algo-container .edit-link a").click(function() {
+			console.log("Edit clicked");
+			var view = new app.ModalView2();
+			var modal = new Backbone.BootstrapModal({ content: view });
+			modal.open();
+			modal.$el.addClass("modal-wide");
+		});
+
 		this.animationControlsModel = options.animationControlsModel;
 		this.masterAnimationControlsModel = options.masterAnimationControlsModel;
 		this.graphModel = options.graphModel || new app.GraphModel({V: 6});
@@ -356,6 +185,60 @@ app.AlgoView = Backbone.View.extend({
 		this.graphView.render();
 		return this;
 	}
+});
+
+app.ModalView2 = Backbone.View.extend({
+    tagName: 'p',
+    template: 'Edit this algorithm!',
+	initialize: function() {
+		this.on("hidden", function(modal) {
+			console.log("in hidden callback");
+		});
+		this.on("shown", function(modal) {
+			console.log("in shown callback");
+			var height = $(window).height() - 200;
+			modal.$el.find(".modal-body").css("max-height", height);
+		});
+	},
+    render: function() {
+		var template = _.template(this.template, {person: {name: "Bob"}});
+        this.$el.html(template);
+		var cm = CodeMirror(this.el, {
+			mode:  "javascript"
+		});
+		$.get("/e/dijkstra").done(function(data) {
+			cm.setValue(data);
+			setTimeout(function() {
+				cm.refresh();
+			}, 0);
+		});
+        return this;
+    }
+});
+
+app.ModalView = Backbone.View.extend({
+
+	events: {
+        'click .close': 'close'
+    },
+
+    initialize: function() {
+        this.template = _.template($('#modal-template').html());
+    },
+
+    render: function() {
+        this.$el.html(this.template(this.model.toJSON()));
+        return this;
+    },
+
+    show: function() {
+        $(document.body).append(this.render().el);
+    },
+
+    close: function() {
+        this.remove();
+    }
+
 });
 
 app.MasterControlsView = Backbone.View.extend({

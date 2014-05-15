@@ -6,6 +6,7 @@
     <!-- <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/jqueryui-1.8.24/themes/smoothness/jquery.ui.theme.css') }}"/> -->
     <!-- <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/ui.spinner.css') }}"/> -->
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/bootstrap.min.css') }}"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/codemirror-4.1/lib/codemirror.css') }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/font-awesome.min.css') }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/application.css') }}"/>
     <!-- <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/WebCola/style.css') }}"/> -->
@@ -23,7 +24,24 @@
     <script type=text/javascript src="{{url_for('static', filename='lib/WebCola/cola.v3.min.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='graph.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='graph_simulation.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='algorithms.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='main.js') }}"></script>
+
+    <script type=text/javascript src="{{url_for('static', filename='lib/bootstrap-3.1.1/js/bootstrap.min.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/bootstrap-modal/src/backbone.bootstrap-modal.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/codemirror-4.1/lib/codemirror.js') }}"></script>
+    <script type=text/javascript src="{{url_for('static', filename='lib/codemirror-4.1/mode/javascript/javascript.js') }}"></script>
+
+    <script id="modal-template" type="text/template">
+      <div class="modal">
+        <div class="modal-header"><h3><%= title %></h3></div>
+        <div class="modal-body"><%= body %></div>
+        <div class="modal-footer"><a class="btn close">Close</a></div>
+      </div>
+      <div class="modal-backdrop"></div>
+    </script>
+
+
 </head>
 <body>
   <div id="app-container" class="container">
@@ -37,6 +55,9 @@
     <div class="row" id="algo-view-container">
       <div class="col-md-6" id="dijkstra-container">
         <div class="algo-container"> <!-- container with the border -->
+          <div class="edit-link" style="position: absolute; top: 5px; left: 500px; ">
+            <a href="#">Edit</a>
+          </div>
           <div class="view-wrapper"> <!-- shrink-wrapped inline block -->
             <div class="animation-controls-container"></div>
             <div class="graph-container"></div>
