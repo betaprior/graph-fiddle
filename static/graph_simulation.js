@@ -4,8 +4,8 @@ app.GraphSimulationView = app.GraphView.extend({
 
 	initialize: function(options) {
 		options = options || {};
-		this.source = this.model.graph.nodes[options.sourceId || 0];
-		this.target = this.model.graph.nodes[options.targetId || 1];
+		this._source = this.model.graph.nodes[options.sourceId || 0];
+		this._target = this.model.graph.nodes[options.targetId || 1];
 		this.timeout = options.timeout || 1000;
 		this.animationModel = options.animationModel;
 		this.next_step = 0;
@@ -25,7 +25,7 @@ app.GraphSimulationView = app.GraphView.extend({
 			if (this.animationModel.get("status") === "playing") {
 				var ps = this.animationModel.previous("status");
 				if (ps === "new" || ps === "finished") {
-					this.initializeDistances(this.model.graph, this.source.id);
+					this.initializeDistances(this.model.graph, this._source.id);
 					this.next_step = 0;
 				}
 				this.runActions(this.next_step);
@@ -37,7 +37,7 @@ app.GraphSimulationView = app.GraphView.extend({
 			// of the simulation is a no-op (or finalizes the simulation)
 			// TODO: hitting "step back" at the beginning resets simulation
 			if (this.animationModel.get("status") === "finished" && this.animationModel.get("req_steps") === 1) {
-				this.initializeDistances(this.model.graph, this.source.id);
+				this.initializeDistances(this.model.graph, this._source.id);
 				this.next_step = 0;
 			}
 			this.animationModel.set("status", "paused");
@@ -91,18 +91,44 @@ app.GraphSimulationView = app.GraphView.extend({
 		if (cls) { sel.select("#new").classed(cls, true); }
 	},
 
+	// This prepares individual graph node text annotations. By default, the
+	// center node text is an HTML text element with "node-text" class; depending on the
+	// algorithm it can display various pieces of information.  For topological sort, for instance,
+	// we could show the topological order of this node; for shortest-path finding algorithms
+	// we'd like to show distance updates.
+	//
+	// The purpose of this function is to create appropriate templates for node text elements
+	// (probably comprised of a set of tspan elements) based on the use case
+	// passed in the `options` object as options.template attribute
+	//
+	// The API for this is a little bit funny because of the limitations of d3 and SVG:
+	// we cannot set innerHtml directly on SVG elements, so we can't operate with simple
+	// HTML strings; the workaround is to select the node's text element and append HTML
+	// to it via append() and attr() functions.  The
+	//
+	// Currently allowed values: "pathfinding"
+	_prepNodeText: function(options) {
+		options = options || {};
+		var appendTemplate = function(d3el, templateName) {
+			if (templateName === "pathfinding") {
+				d3el.classed({pathfinding: true});
+				d3el.append("tspan").attr("id", "old");
+				d3el.append("tspan").attr({"id": "spc", "xml:space": "preserve"});
+				d3el.append("tspan").attr("id", "new");
+			} else {
+				throw new Error("Unimplemented template " + templateName);
+			}
+		};
+		var d3text = this.d3el.selectAll("[id^=node]").select("text");
+		d3text.selectAll("tspan").remove();
+		appendTemplate(d3text, options.template);
+	},
+
 	// This creates the text spans for node distance text; as such, this
 	// must be run before any distance labels can be updated using showNodeDist.
-	// Creating HTML should probably be delegated to some other function eventually.
 	displayAllDistances: function(options) {
 		options = options || {};
 		var d3nodes = this.d3el.selectAll("[id^=node]");
-		if (d3nodes.select("tspan#new").empty()) {
-			var d3text = d3nodes.select("text");
-			d3text.append("tspan").attr("id", "old");
-			d3text.append("tspan").attr({"id": "spc", "xml:space": "preserve"});
-			d3text.append("tspan").attr("id", "new");
-		}
 		var selNew = d3nodes.select("text > tspan#new");
 		var selOld = d3nodes.select("text > tspan#old");
 		var selSpc = d3nodes.select("text > tspan#spc");
@@ -128,6 +154,7 @@ app.GraphSimulationView = app.GraphView.extend({
 			x.dist = Infinity;
 		});
 		graph.nodes[source].dist = 0;
+		this._prepNodeText({template: "pathfinding"});
 		this.displayAllDistances({fromData: true});
 	},
 
@@ -249,7 +276,11 @@ app.GraphSimulationView = app.GraphView.extend({
 		// 	}
 		// });
 		d3el.selectAll(".node").attr("class", function(d) {
-			return d3.select(this).attr("class") + " " + step.graph.nodes[d.id].getStatus();
+			var status = step.graph.nodes[d.id].getStatus() || "";
+			if (status.length) {
+				status = " " + status;
+			}
+			return d3.select(this).attr("class") + status;
 		});
 
 		// var curNode = d3el.selectAll("#node" + step.edge.target.name);
@@ -281,43 +312,6 @@ app.GraphSimulationView = app.GraphView.extend({
 		this.actions.push(step);
 		// clear the graph status field
 		this.resetStatus(graph);
-	},
-
-	vizStep: function(step) {
-		var graph = this.model.graph;
-		this.updateSteps(this.next_step);
-		// this.updateDist(step.curDist);
-		console.log(step.debug);
-		console.log(graph.nodes[this.target.id]);
-		var d3el = this.d3el;
-		d3el.selectAll("[id^=link]").classed("visiting", false);
-		d3el.selectAll("[id^=node]").classed("visiting", false);
-		d3el.selectAll("[id^=link]").attr("marker-end", "url(#end)");
-		d3el.selectAll("text.dist").classed("relaxing", false);
-		// d3el.selectAll("text.dist > tspan#old").text("");
-		this.displayAllDistances();
-		d3el.selectAll("#link" + step.edge.id).classed("visiting", true);
-		var curNode = d3el.selectAll("#node" + step.edge.target.id);
-		curNode.classed("visiting", true);
-
-		// highlight currently active path:
-		d3el.selectAll("[id^=link]").classed("active", false);
-		_(step.curPath).each(function(edge) {
-			d3el.selectAll("#link" + edge.id).classed("active", true);
-			d3el.selectAll("#link" + edge.id).attr("marker-end", "url(#end-active)");
-		});
-		if (step.relaxing) {
-			this.updateOp(step.sourceDist + " + " + step.edge.weight + " < " + step.oldDist,
-						  {fill: "green"});
-			if (step.edge.target.id === this.target.id) {
-				this.updateDist(step.newDist);
-			}
-			this.showNodeDist(step, {cls: "relaxing", showOld: true});
-			console.log(this.pathToString(step.curPath));
-		} else {
-			this.updateOp(step.sourceDist + " + " + step.edge.weight + " >= " + step.newDist,
-						  {fill: "red"});
-		}
 	},
 
 	resetStatus: function(graph, srcGraph) {

@@ -1,10 +1,15 @@
 #+TITLE: SSSP
 
-This will visually demonstrate single-source shortest path graph algorithms.  
+This will visually demonstrate single-source shortest path graph algorithms.
 
 We will animate Dijkstra's algorithm and run it on a graph that is designed
 to show exponential runtime of Dijkstra with negative edges.
 
+TODO: deal with source and target state; ideas:
+- make "source" and "target" into graph model attributes
+  OR
+- make them into private variables and only access them via setters/getters
+- remove them as arguments to the graph vis method
 
 [[file:index.py][file:~/Dropbox/code/projects/sssp/index.py]]
 

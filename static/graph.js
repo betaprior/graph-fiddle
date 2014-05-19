@@ -127,11 +127,11 @@ app.GraphView = Backbone.View.extend({
 		node.append("circle").attr("r", this.nodeR);
 		// add path distance info text
 		node.append("text")
-			.attr("class", "dist")
+			.attr("class", "node-text")
 			.attr("text-anchor", "middle")
 			.attr("dy", "3px")
-			.attr("x", 0)
-			.text(function(d) { return d.dist; });
+			.attr("x", 0);
+			// .text(function(d) { return d.dist; });
 
 		// add labels
 		if (this.options.nodeLabels) {
