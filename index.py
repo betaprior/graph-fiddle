@@ -27,7 +27,10 @@ def get_algo_text(algoname):
 				buffering = False
 				break
 			if buffering:
+				line = line.replace("recordAnimatedAlgorithm:", "this.graphView.recordAnimatedAlgorithm =")
 				linebuffer.append(line.rstrip())
+	if len(linebuffer) == 0:
+		raise InvalidSearch("Cannot find predefined code for algorithm %s" % algoname)
 	return render_template('algocode', lines=linebuffer)
 
 @app.route("/testtemplate")

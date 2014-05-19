@@ -72,14 +72,15 @@ text {
   pointer-events: none;
 }
 
-text.dist {
+text.node-text,
+text.pathfinding {
   fill: #000;
   font: 14px sans-serif;
   pointer-events: none;
 }
 
-text.dist > tspan.relaxing,
-text.dist.relaxing {
+text.pathfinding > tspan.relaxing,
+text.pathfinding.relaxing {
   fill: #000;
   font: 14px sans-serif;
   font-weight: bold;
@@ -192,4 +193,10 @@ div.algo-container::after {
 }
 .modal-wide .modal-body {
   overflow-y: auto;
+}
+
+/* editor tabs styling */
+.nav-tabs > li .close {
+	margin: -2px 0 0 10px;
+	font-size: 18px;
 }

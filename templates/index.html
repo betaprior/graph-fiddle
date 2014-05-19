@@ -7,6 +7,7 @@
     <!-- <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/ui.spinner.css') }}"/> -->
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/bootstrap.min.css') }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/codemirror-4.1/lib/codemirror.css') }}"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/codemirror-4.1/theme/base16-light.css') }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/font-awesome.min.css') }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/application.css') }}"/>
     <!-- <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/WebCola/style.css') }}"/> -->
@@ -55,9 +56,7 @@
     <div class="row" id="algo-view-container">
       <div class="col-md-6" id="dijkstra-container">
         <div class="algo-container"> <!-- container with the border -->
-          <div class="edit-link" style="position: absolute; top: 5px; left: 500px; ">
-            <a href="#">Edit</a>
-          </div>
+          <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
           <div class="view-wrapper"> <!-- shrink-wrapped inline block -->
             <div class="animation-controls-container"></div>
             <div class="graph-container"></div>
@@ -66,6 +65,7 @@
       </div>
       <div class="col-md-6" id="bellman-ford-container">
         <div class="algo-container">
+          <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
           <div class="view-wrapper">
             <div class="animation-controls-container"></div>
             <div class="graph-container"></div>
@@ -74,6 +74,16 @@
       </div>
       <div class="col-md-6" id="toposort-container">
         <div class="algo-container">
+          <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
+          <div class="view-wrapper">
+            <div class="animation-controls-container"></div>
+            <div class="graph-container"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6" id="user-defined-container">
+        <div class="algo-container">
+          <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
           <div class="view-wrapper">
             <div class="animation-controls-container"></div>
             <div class="graph-container"></div>

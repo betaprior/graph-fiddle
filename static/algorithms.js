@@ -26,10 +26,14 @@ app.AnimatedSimulationBase = app.GraphSimulationView.extend({
 		app.GraphSimulationView.prototype.initialize.apply(this, arguments);
 	},
 	render: function() {
+		this.actions = [];
 		this.renderGraph(this.model.graph);
 		this.resetStatus(this.model.graph);
-		this.recordAnimatedAlgorithm(this.model.graph, this.source, this.target);
+		this.recordAnimatedAlgorithm(this.model.graph, this._source, this._target);
 		return this;
+	},
+	recordAnimatedAlgorithm: function(graph, source, target) {
+
 	}
 });
 
@@ -42,7 +46,7 @@ app.DijkstraView = app.AnimatedSimulationBase.extend({
 		this.addNodeClass(target.id, "target");
 
 		var edgeTo = {};
-		var curDist = graph.nodes[this.target.id].dist;
+		var curDist = graph.nodes[target.id].dist;
 		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
 		this.initializeAnnotations(annotations);
 		var pq = makeIndexedPQ();
@@ -51,6 +55,7 @@ app.DijkstraView = app.AnimatedSimulationBase.extend({
 		while (!pq.isEmpty()) {
 			var curNode = pq.deleteMin();
 			curNode.pqHandle = null;
+			if (curNode.id === target.id) { continue; }
 			for (var i = 0; i < curNode.adj.length; i++) {
 				var edge = curNode.adj[i];
 				var newDist = edge.target.dist;
@@ -59,13 +64,13 @@ app.DijkstraView = app.AnimatedSimulationBase.extend({
 				if (this.isTense(edge)) {
 					newDist = this.relax(edge);
 					edgeTo[edge.target.id] = edge;
+					if (edge.target.id === target.id) {
+						curDist = newDist;
+					}
 					if (edge.target.pqHandle) {
 						pq.changeKey(edge.target.pqHandle, newDist);
 					} else {
 						edge.target.pqHandle = pq.push(edge.target, newDist);
-					}
-					if (edge.target.id === this.target.id) {
-						curDist = newDist;
 					}
 				}
 				annotations.push(this.makeShortestPathAnnotation(curDist));
@@ -90,7 +95,7 @@ app.BellmanFordView = app.AnimatedSimulationBase.extend({
 		var E = this.model.E();
 		this.initializeDistances(graph, source.id);
 		var edgeTo = {};
-		var curDist = graph.nodes[this.target.id].dist;
+		var curDist = graph.nodes[target.id].dist;
 		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
 		this.initializeAnnotations(annotations);
 		for (var i = 0; i < V; ++i) {
@@ -100,7 +105,7 @@ app.BellmanFordView = app.AnimatedSimulationBase.extend({
 				if (this.isTense(edge)) {
 					var newDist = this.relax(edge);
 					edgeTo[edge.target.id] = edge;
-					if (edge.target.id === this.target.id) {
+					if (edge.target.id === target.id) {
 						curDist = newDist;
 					}
 				}
@@ -136,14 +141,22 @@ app.TopoSortSsspView = app.AnimatedSimulationBase.extend({
 	};
 
 		this.initializeDistances(graph, source.id);
+		this.addNodeClass(source.id, "source");
+		this.addNodeClass(target.id, "target");
+
 		var edgeTo = {};
 
-		var curDist = graph.nodes[this.target.id].dist;
-		var topoNodes = topoSort(graph, this.source.id);
+		var curDist = graph.nodes[target.id].dist;
+		var topoNodes = topoSort(graph, source.id);
 		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
 		this.initializeAnnotations(annotations);
 
-		_.each(topoNodes, function(node) {
+		for (var i = 0; i < topoNodes.length; i++) {
+			var node = topoNodes[i];
+			if (node.id === target.id) {
+				console.log("node " + node.id + " is target; aborting");
+				return;
+			}
 			_.each(node.adj, function(edge) {
 				var newDist = edge.target.dist;
 				// annotations[0] = this.makeStepAnnotation(edge);
@@ -151,7 +164,7 @@ app.TopoSortSsspView = app.AnimatedSimulationBase.extend({
 				annotations.push(this.makeStepAnnotation(edge));
 				if (this.isTense(edge)) {
 					newDist = this.relax(edge);
-					if (edge.target.id === this.target.id) {
+					if (edge.target.id === target.id) {
 						curDist = newDist;
 					}
 					edgeTo[edge.target.id] = edge;
@@ -165,7 +178,7 @@ app.TopoSortSsspView = app.AnimatedSimulationBase.extend({
 				this.recordStep(graph, annotations);
 				console.log("recording step w/ path " + annotations[1].text);
 			}.bind(this));
-		}.bind(this));
+		}
 	}
 /* END ALGORITHM */
 });
