@@ -1,5 +1,10 @@
 var app = app || {};
 
+/**
+ *   Graph simulation class
+ *
+ *   Contains methods for creating and rendering graph traversal simulation animations.
+ */
 app.GraphSimulationView = app.GraphView.extend({
 
 	initialize: function(options) {
@@ -14,8 +19,12 @@ app.GraphSimulationView = app.GraphView.extend({
 		app.GraphView.prototype.initialize.apply(this, arguments);
 	},
 
+	/**
+	 *   Register events from control models.
+	 */
 	_registerEvents: function() {
 		this.listenTo(this.model, "change:V", function() {
+			// TODO: generalize to use any graph creation algorithm
 			this.model.makeWorstCaseDijkstra(this.model.get("V"));
 			this.actions = [];
 			this.next_step = 0;
@@ -35,7 +44,8 @@ app.GraphSimulationView = app.GraphView.extend({
 			if (this.animationModel.get("req_steps") === 0) { return; }
 			// TODO: change this behavior so that hitting "step fwd" at the end
 			// of the simulation is a no-op (or finalizes the simulation)
-			// TODO: hitting "step back" at the beginning resets simulation
+			// TODO: FIXME: hitting "step back" at the beginning should either reset the simulation
+			// or loop to the last step (currently it goes to step 1)
 			if (this.animationModel.get("status") === "finished" && this.animationModel.get("req_steps") === 1) {
 				this.initializeDistances(this.model.graph, this._source.id);
 				this.next_step = 0;
@@ -46,6 +56,12 @@ app.GraphSimulationView = app.GraphView.extend({
 		});
 	},
 
+	/**
+	 *   Update distance annotations from step to step.  This function
+	 *   shows the distances from source node as of the current step;
+	 *   if a step updates a node's distance, the previous distance is shown
+	 *   next to the new one (styled accodingly, e.g. with a strikethrough font).
+	 */
 	visualizeDistances: function(step, prevStep, options) {
 		var d3el = this.d3el;
 		d3el.selectAll(".node").select("text")
@@ -61,6 +77,8 @@ app.GraphSimulationView = app.GraphView.extend({
 				if (options.showOld && oldText && oldText !== curText) {
 					spc = " ";
 					d3.select(this).select("#old").text(oldText).attr("text-decoration", "line-through");
+				} else {
+					d3.select(this).select("#old").text("");
 				}
 				d3.select(this).select("#spc").text(spc);
 				d3.select(this).select("#new").text(curText);
@@ -68,45 +86,24 @@ app.GraphSimulationView = app.GraphView.extend({
 			});
 	},
 
-	showNodeDist: function(step, options) {
-		options = options || {};
-		var cls = options.cls;
-		var node = step.edge.target;
-		var dist = step.newDist;
-		var oldDist = step.oldDist;
-		var d3el = this.d3el;
-		var sel = d3el.selectAll("#node" + node.id).select("text");
-		if (dist === null) {
-			dist = sel.datum().dist;
-		}
-		var oldText = "";
-		if (options.showOld && oldDist !== void 0) {
-			oldText = oldDist === Infinity ? '∞' : String(oldDist);
-		}
-		var spc = oldText && options.showOld ? ' ' : '';
-		var newText = dist === Infinity ? '∞' : dist;
-		sel.select("#old").text(oldText).attr("text-decoration", "line-through");
-		sel.select("#spc").text(spc);
-		sel.select("#new").text(newText);
-		if (cls) { sel.select("#new").classed(cls, true); }
-	},
-
-	// This prepares individual graph node text annotations. By default, the
-	// center node text is an HTML text element with "node-text" class; depending on the
-	// algorithm it can display various pieces of information.  For topological sort, for instance,
-	// we could show the topological order of this node; for shortest-path finding algorithms
-	// we'd like to show distance updates.
-	//
-	// The purpose of this function is to create appropriate templates for node text elements
-	// (probably comprised of a set of tspan elements) based on the use case
-	// passed in the `options` object as options.template attribute
-	//
-	// The API for this is a little bit funny because of the limitations of d3 and SVG:
-	// we cannot set innerHtml directly on SVG elements, so we can't operate with simple
-	// HTML strings; the workaround is to select the node's text element and append HTML
-	// to it via append() and attr() functions.  The
-	//
-	// Currently allowed values: "pathfinding"
+	/**
+	 *   This function prepares individual graph node text annotations. By default, the
+	 *   center node text is an HTML text element with "node-text" class; depending on the
+	 *   algorithm it can display various pieces of information.  For topological sort, for instance,
+	 *   we could show the topological order of this node; for shortest-path finding algorithms
+	 *   we'd like to show distance updates.
+	 *
+	 *   The purpose of this function is to create appropriate templates for node text elements
+	 *   (probably comprised of a set of tspan elements) based on the use case
+	 *   passed in the `options` object as options.template attribute
+	 *
+	 *   The API for this is a little bit funny because of the limitations of d3 and SVG:
+	 *   we cannot set innerHtml directly on SVG elements, so we can't operate with simple
+	 *   HTML strings; the workaround is to select the node's text element and append HTML
+	 *   to it via append() and attr() functions.
+	 *
+	 *   Currently allowed values: "pathfinding"
+	 */
 	_prepNodeText: function(options) {
 		options = options || {};
 		var appendTemplate = function(d3el, templateName) {
@@ -124,29 +121,17 @@ app.GraphSimulationView = app.GraphView.extend({
 		appendTemplate(d3text, options.template);
 	},
 
-	// This creates the text spans for node distance text; as such, this
-	// must be run before any distance labels can be updated using showNodeDist.
-	displayAllDistances: function(options) {
-		options = options || {};
+	/**
+	 *   Reset the distance display tspans from data.
+	 *   By default, distances are displayed in the "new" tspan.
+	 */
+	_resetDistanceDisplay: function() {
 		var d3nodes = this.d3el.selectAll("[id^=node]");
-		var selNew = d3nodes.select("text > tspan#new");
-		var selOld = d3nodes.select("text > tspan#old");
-		var selSpc = d3nodes.select("text > tspan#spc");
-
-		selOld.text("");
-		selSpc.text("");
-		selNew.text(function(d) {
-			if (options.fromData) {
-				return d.dist === Infinity ? '∞' : d.dist;
-			} else {
-				return d3.select(this).text();
-			}
+		d3nodes.select("text > tspan#old").text("");
+		d3nodes.select("text > tspan#spc").text("");
+		d3nodes.select("text > tspan#new").text(function(d) {
+			return d.dist === Infinity ? '∞' : d.dist;
 		});
-	},
-
-	deselectAll: function() {
-		this.d3el.selectAll("[id^=link]").classed("visiting", false);
-		this.d3el.selectAll("text.dist").classed("relaxing", false);
 	},
 
 	initializeDistances: function(graph, source) {
@@ -155,7 +140,7 @@ app.GraphSimulationView = app.GraphView.extend({
 		});
 		graph.nodes[source].dist = 0;
 		this._prepNodeText({template: "pathfinding"});
-		this.displayAllDistances({fromData: true});
+		this._resetDistanceDisplay();
 	},
 
 	isTense: function(edge) {
@@ -165,6 +150,11 @@ app.GraphSimulationView = app.GraphView.extend({
 	relax: function(edge) {
 		edge.target.dist = edge.source.dist + edge.weight;
 		return edge.target.dist;
+	},
+
+	deselectAll: function() {
+		this.d3el.selectAll("[id^=link]").classed("visiting", false);
+		this.d3el.selectAll("text.dist").classed("relaxing", false);
 	},
 
 	pathToString: function(path) {
@@ -234,17 +224,15 @@ app.GraphSimulationView = app.GraphView.extend({
 	},
 
 	/**
-	 * To visualize a step in a general graph traversal algorithm, we will store a copy
-	 * of a graph with every state. The state of every edge and node is recorded, along with
-	 * the annotations.
+	 *   To visualize a step in a general graph traversal algorithm, we will store a copy
+	 *   of a graph with every state. The state of every edge and node is recorded, along with
+	 *   the annotations.
 	 */
 	visualizeStep: function(step) {
 		if (_.has(step, "debug")) { console.log(step.debug); }
 		// update step # annotation
 		var annotations = [this.makeStepNumberAnnotation(this.next_step)].concat(step.annotations);
 		this.renderAnnotations(annotations);
-		// var nodeValues = d3.values(step.graph.nodes);
-		// var linkValues = d3.values(step.graph.links);
 		var d3el = this.d3el;
 		// remove classes from previous steps
 		d3el.selectAll("[id^=link]").classed("visiting", false);
@@ -253,15 +241,11 @@ app.GraphSimulationView = app.GraphView.extend({
 		d3el.selectAll("[id^=link]").attr("marker-end", "url(#end)");
 		d3el.selectAll("text.dist").classed("relaxing", false);
 		// update all the distances
-		this.displayAllDistances(); // reset all the new/spc/old tspans
+		// this.displayAllDistances(); // reset all the new/spc/old tspans
 		var prevStep = this.next_step - 2 >= 0 ? this.actions[this.next_step - 2] : null;
 		this.visualizeDistances(step, prevStep, {showOld: true});
 
 		// assign all the classes in accordance to passed graph status fields
-		// var getClassed = function(list) { //TODO: replace w/ for loop to avoid overhead
-		// 	return _.object(_(list).map(function(x) { return [x, true]; }));
-		// };
-		// d3el.selectAll("#link" + step.edge.id).classed("visiting", true);
 		d3el.selectAll(".link").attr("class", function(d) {
 			return d3.select(this).attr("class") + " " + step.graph.links[d.id].getStatus();
 		}).each(function(d) {
@@ -270,11 +254,6 @@ app.GraphSimulationView = app.GraphView.extend({
 			}
 		});
 
-		// d3el.selectAll(".link").each(function(d) {
-		// 	if (d3.select(this).classed("active")) {
-		// 		d3.select(this).attr("marker-end", "url(#end-active)");
-		// 	}
-		// });
 		d3el.selectAll(".node").attr("class", function(d) {
 			var status = step.graph.nodes[d.id].getStatus() || "";
 			if (status.length) {
@@ -282,17 +261,6 @@ app.GraphSimulationView = app.GraphView.extend({
 			}
 			return d3.select(this).attr("class") + status;
 		});
-
-		// var curNode = d3el.selectAll("#node" + step.edge.target.name);
-		// curNode.classed("visiting", true);
-
-		// // highlight currently active path:
-		// d3el.selectAll("[id^=link]").classed("active", false);
-		// _(step.curPath).each(function(edge) {
-		// 	d3el.selectAll("#link" + edge.id).classed("active", true);
-		// 	d3el.selectAll("#link" + edge.id).attr("marker-end", "url(#end-active)");
-		// });
-
 	},
 
 	recordStep: function(graph, annotations) {
@@ -320,23 +288,6 @@ app.GraphSimulationView = app.GraphView.extend({
 		var cloneLinkStatus = function(x) { x.copyStatus(srcGraph.links[x.id]); };
 		_(graph.nodes).each(!srcGraph ? setBlankStatus : cloneNodeStatus);
 		_(graph.links).each(!srcGraph ? setBlankStatus : cloneLinkStatus);
-		// if (srcGraph) {
-		// 	_(graph.nodes).each(function(x) {
-		// 		x.copyStatus(srcGraph.nodes[x.id]);
-		// 	});
-		// 	_(graph.links).each(function(x) {
-		// 		x.copyStatus(srcGraph.links[x.id]);
-		// 	});
-		// } else {
-		// 	_(graph.nodes).each(function(x) {
-		// 		x.clearStatus();
-		// 	});
-		// 	_(graph.links).each(function(x) {
-		// 		x.clearStatus();
-		// 	});
-		// }
-
-
 	},
 
 	runStep: function(i) {
@@ -347,7 +298,6 @@ app.GraphSimulationView = app.GraphView.extend({
 			i = 0;
 		}
 		this.next_step = i + 1;
-		// this.vizStep(this.actions[i]);
 		this.visualizeStep(this.actions[i]);
 		if (i === this.actions.length - 1) {
 			this.animationModel.set("status", "finished");
@@ -356,6 +306,7 @@ app.GraphSimulationView = app.GraphView.extend({
 	},
 
 	runActions: function(i) {
+		if (!this.actions.length) { return; }
 		if (this.animationModel.get("status") !== "playing") { return; }
 		i = i || 0;
 		this.runStep(i);

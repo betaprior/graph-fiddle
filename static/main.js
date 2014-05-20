@@ -1,32 +1,28 @@
 var app = app || {}; // The Application
-app.util = app.util || {};
 
-app.PlayPauseButton = Backbone.View.extend({
-	tagName: "a",
-	template: '<span class="fa fa-play"></span> <span class="mylabel">Run</span>',
-	initialize: function() {
-		this.model.set("status", "new");
-		this.model.on('change:status', this.render, this);
-	},
-	render: function(){
-		this.$el.html(this.template);
-		this.$el.addClass("btn btn-default");
-		this.$("span.fa").removeClass("fa-play fa-pause");
-		this.$("span.fa").addClass('fa-' + (this.isPlaying() ? 'pause' : 'play'));
-		this.$("span.mylabel").text(this.isPlaying() ? " Pause" : " Run");
-	},
-	events: {
-		'click': function(){
-			this.model.set('status', this.isPlaying() ? 'paused' : 'playing');
-		}
-	},
-	isPlaying: function(){
-		return this.model.get('status') === 'playing';
-	}
-});
+/**
+ *   main.js
+ *
+ *   This file is currently a kitchen sink of components.
+ *   Once the layout of the page stabilizes (all controls are present
+ *   and dynamic creation of templates for individual graph simulations is implemented),
+ *   this will be cleaned and refactored.
+ *
+ *   Currently this file contains
+ *   app.GraphControlsView: view to control graph parameters.
+ *     currently contains just the spinner to adjust vertex #
+ *   app.AnimationControlView: animation control for individual graphs
+ *   app.MasterControlsView: master animation control
+ *   app.AlgoView: render an algorithm simulation panel
+ *   app.ModalView: modal for tne editor
+ *   app.AlgoModel: model driving the editor
+ *   app.MainView
+ */
 
 app.GraphControlsView = Backbone.View.extend({
+
 	el: "#spinner-form-group",
+
 	template: '\
 	    <label>Number of vertices:</label>\
     <div class="input-group spinner">\
@@ -58,6 +54,7 @@ app.GraphControlsView = Backbone.View.extend({
 			return false;
 		}.bind(this));
 	},
+
 	_initSpinner: function() {
 		this._bindSpinnerArrows();
 		var that = this;
@@ -72,9 +69,11 @@ app.GraphControlsView = Backbone.View.extend({
 			that.$spinner.val(that.model.get("V"));
 		});
 	},
+
 	_getVal: function() {
 		return parseInt(this.$spinner.val(), 10);
 	},
+
 	initialize: function(options) {
 		options = options || {};
 		this.animationModels = options.animationModels;
@@ -97,6 +96,7 @@ app.GraphControlsView = Backbone.View.extend({
 
 		this.listenTo(this.animationModels, "change", playingStateHandler);
 	},
+
 	render: function() {
 		this.$el.html(this.template);
 		this.$spinner = this.$(".spinner input");
@@ -107,13 +107,16 @@ app.GraphControlsView = Backbone.View.extend({
 });
 
 app.AnimationControlView = Backbone.View.extend({
+
 	template: '<a id="play" class="btn btn-default"><span class="fa fa-play"></span> <span class="mylabel">Run</span></a><a id="step-back" class="btn btn-default"><span class="fa fa-step-backward"></span></a><a id="step-fwd" class="btn btn-default"><span class="fa fa-step-forward"></span></a>',
+
 	initialize: function(options) {
 		this.options = options || {};
 		this.model.set("status", "new");
 		this.model.on('change:status', this.render, this);
 		Backbone.View.prototype.initialize.apply(this, arguments);
 	},
+
 	_selectivelyDisplayControls: function() {
 		if (this.options.showOnly) {
 			this.$(".btn").css("display", "none");
@@ -122,6 +125,7 @@ app.AnimationControlView = Backbone.View.extend({
 			}.bind(this));
 		}
 	},
+
 	render: function(){
 		this.$el.html(this.template);
 		this._selectivelyDisplayControls();
@@ -129,6 +133,7 @@ app.AnimationControlView = Backbone.View.extend({
 		this.$("#play span.fa").addClass('fa-' + (this.isPlaying() ? 'pause' : 'play'));
 		this.$("span.mylabel").text(this.isPlaying() ? " Pause" : " Run");
 	},
+
 	events: {
 		'click a#play': function() {
 			this.model.set("status", this.isPlaying() ? "paused" : "playing");
@@ -146,6 +151,7 @@ app.AnimationControlView = Backbone.View.extend({
 });
 
 app.AlgoView = Backbone.View.extend({
+
 	initialize: function(options) {
 		options = options || {};
 		var algo = options.algorithm;
@@ -202,6 +208,7 @@ app.AlgoView = Backbone.View.extend({
 		this.graphView  = new AlgoView({model: this.graphModel,
 										animationModel: this.animationControlsModel});
 	},
+
 	render: function() {
 		console.log("Rendering algo view");
 		this.$(".animation-controls-container").append(this.playButton.$el);
@@ -212,13 +219,16 @@ app.AlgoView = Backbone.View.extend({
 	}
 });
 
+// editor view goes here; this is buggy and horrible and very much a work in progress
 app.ModalView2 = Backbone.View.extend({
+
     template: '<div id="edit-controls" style="display: none;"> \
 			<ul class="nav nav-tabs" id="editor-tabs"> \
 			<li id="default_code"><a href="#" data-toggle="tab">Default</a></li> \
 			<li id="edited_code"><a href="#" data-toggle="tab"><button class="close close-tab" type="button" >×</button>Edited</a></li> \
 			</ul></div> \
 			<div id="edit-area"></div>',
+
 	initialize: function() {
 		function saveCallback() {
 			if (!this.cm.isClean()) {
@@ -235,6 +245,7 @@ app.ModalView2 = Backbone.View.extend({
 		});
 		this.on("ok", saveCallback);
 	},
+
     render: function() {
         this.$el.html(this.template);
 		var $editControls = this.$("#edit-controls");
@@ -288,6 +299,8 @@ app.ModalView2 = Backbone.View.extend({
     }
 });
 
+// TODO: decide whether we are sticking with what's now in ModalView2 for the editor
+// modal, if so, get rid of this temp code
 app.ModalView = Backbone.View.extend({
 
 	events: {
@@ -314,6 +327,7 @@ app.ModalView = Backbone.View.extend({
 });
 
 app.MasterControlsView = Backbone.View.extend({
+
 	initialize: function(options) {
 		this.animationModels = options.animationModels;
 		this.masterAnimationControlsModel = options.masterAnimationControlsModel;
@@ -330,16 +344,19 @@ app.MasterControlsView = Backbone.View.extend({
 		this.listenTo(this.animationModels, "change:status", this.stateHandler);
 		this.listenTo(this.masterAnimationControlsModel, "change:status", this.masterStateHandler);
 	},
+
 	allStopped: function() {
 			return this.animationModels.every(function(m) {
 				return m.get("status") !== "playing";
 			});
 	},
+
 	allFinished: function() {
 			return this.animationModels.every(function(m) {
 				return m.get("status") === "finished";
 			});
 	},
+
 	masterStateHandler: function(model, val, options) {
 		var masterStatus = this.masterAnimationControlsModel.get("status");
 		if (masterStatus === "paused" && this.allStopped()) {
@@ -358,6 +375,7 @@ app.MasterControlsView = Backbone.View.extend({
 			});
 		}
 	},
+
 	stateHandler: function(model, val, options) {
 		// console.log("Handling state change of model " + model.cid + " from " + model.previous("status") + " to " + model.get("status"));
 		if (model.get("status") !== "playing") {
@@ -367,6 +385,7 @@ app.MasterControlsView = Backbone.View.extend({
 			}
 		}
 	},
+
 	render: function() {
 		this.graphControls.render();
 		this.masterAnimationControls.render();
@@ -381,6 +400,7 @@ function hereDoc(f) {
 }
 
 app.AlgoModel = Backbone.Model.extend({
+
 	initialize: function(attributes, options) {
 		options = options || {};
 		this.animationControlsModel = options.animationControlsModel;
@@ -396,6 +416,7 @@ app.AlgoModel = Backbone.Model.extend({
 			this.loadDefaultCode(); // callbacks?
 		}
 	},
+
 	loadDefaultCode: function() {
 		var dfd = $.Deferred();
 		if (!this.get("algo_id")) {
@@ -412,6 +433,7 @@ app.AlgoModel = Backbone.Model.extend({
 		}
 		return dfd;
 	},
+
 	events: {
 		"change:algo_id": function() {
 			if (this.get("user_defined")) {
@@ -425,6 +447,7 @@ app.AlgoModel = Backbone.Model.extend({
 			}
 		}.bind(this)
 	},
+
 	defaults: {
 		"algo_id": "",
 		"title": "untitled",
@@ -434,6 +457,9 @@ app.AlgoModel = Backbone.Model.extend({
 		"edited_code": "this.graphView.recordAnimatedAlgorithm = function(graph, source, target) {\
 \
 }",
+		// This is a "hereDoc" hack to parse a multi-line string from a comment into a variable
+		// http://stackoverflow.com/questions/805107/creating-multiline-strings-in-javascript
+		// TODO: remove this after debugging, it's here for debugging purposes only
 		"edited_code_": hereDoc(function() {/*!
     console.log("IN DYNAMICALLY LOADED CODE");
     this.testing = "HELLO";
@@ -488,7 +514,9 @@ app.AlgoModel = Backbone.Model.extend({
 });
 
 app.MainView = Backbone.View.extend({
+
 	el: "#app-container",
+
 	initialize: function() {
 		var algos = ["dijkstra", "bellman-ford", "toposort", "user-defined"];
 		// var algos = ["dijkstra", "bellman-ford"];
@@ -527,19 +555,12 @@ app.MainView = Backbone.View.extend({
 			animationModels.add(animationControlsModel);
 		}.bind(this));
 	},
+
 	render: function() {
 		this.masterControlsView.render();
 		_(this.algoViews).each(function(x) {
 			x.render();
 		});
-		// this.$("#graph-controls-container").append(this.graphControls.$el);
-		// this.$("#graph-controls-container").append(this.masterAnimationControls.$el);
-		// this.$("#animation-controls-container").append(this.playButton.$el);
-		// this.playButton.render();
-		// this.$("#dijkstra-container").append(this.graphView.$el);
-		// this.$("#bellman-ford-container").append(this.graphView2.$el);
-		// this.graphView.render();
-		// this.graphView2.render();
 		return this;
 	}
 });

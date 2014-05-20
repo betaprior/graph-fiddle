@@ -1,8 +1,24 @@
 var app = app || {};
 
+/**
+ *   Base graph view for visualizations.
+ *
+ *   Renders graph on an SVG canvas; uses cola.js for layout
+ *   (http://marvl.infotech.monash.edu/webcola/)
+ *   as a drop-in replacement for d3 force directed layout.
+ */
 app.GraphView = Backbone.View.extend({
+	/**
+	 *   Initializer/constructor options:
+	 *   required:
+	 *   - model: GraphModel for this graph
+	 *   optional:
+	 *   - nodeLabels: whether to show node labels
+	 *   - loadData
+	 */
 	initialize: function(options) {
 		options = options || {};
+		// TODO: test and improve loading from files
 		if (options.loadData) {
 			this.graphPromise = this.getData(options.loadData);
 		}
@@ -13,37 +29,26 @@ app.GraphView = Backbone.View.extend({
 		this.d3el = d3.select(this.el);
 		this.cola = cola;
 	},
+
 	render: function() {
 		if (this.graphPromise !== void 0) {
 			this.graphPromise.done(function(graph) {
-				this.renderGraph(graph, options);
+				this.renderGraph(graph);
 			}.bind(this));
 		} else {
 			this.renderGraph(this.model.graph);
 		}
 		return this;
 	},
-	updateAnnotation: function(id, label, text, style) {
-		var annot = this.d3el.selectAll(id).select("text");
-		annot.select(".annotation-label").text(label);
-		annot.select(".annotation-text").text(text);
-		if (style) { annot.select(".annotation-text").style(style); }
-	},
-	updateSteps: function(n) {
-		this.updateAnnotation("#status-steps", "Steps: ", String(n));
-	},
-	updateDist: function(n) {
-		this.updateAnnotation("#status-dist", "Shortest path: ", String(n).replace("Infinity", "∞"));
-	},
-	updateOp: function(status, style) {
-		this.updateAnnotation("#status-op", "Current comparison: ", status.replace("Infinity", "∞"), style);
-	},
+
 	addNodeClass: function(id, class_) {
 		this.d3el.select("#node" + id).classed(class_, true);
 	},
+
 	addLinkClass: function(id, class_) {
 		this.d3el.select("#link" + id).classed(class_, true);
 	},
+
 	renderAnnotations: function(annotations) {
 		var d3annotations = this.d3el.select("#annotations").selectAll(".annotation-item")
 				.data(annotations);
@@ -66,6 +71,7 @@ app.GraphView = Backbone.View.extend({
 				if (d.style) { d3.select(this).style(d.style); }
 			});
 	},
+
 	renderGraph: function(graph) {
 		var svg = this.prepSvg(this.width, this.height);
 		var nodeValues = d3.values(graph.nodes);
@@ -176,6 +182,7 @@ app.GraphView = Backbone.View.extend({
 			});
 		}
 	},
+
 	// name: marker name that will be used to assign lines to markers:
 	// attr("marker-end", "url(#NAME)")
 	// classes: object with class names to assign to the marker path in the format
@@ -197,6 +204,7 @@ app.GraphView = Backbone.View.extend({
 			path.classed(classes);
 		}
 	},
+
 	prepSvg: function(width, height) {
 		d3.select(this.el).html("");
 		var svg = d3.select(this.el).append("svg")
@@ -208,6 +216,8 @@ app.GraphView = Backbone.View.extend({
 		this.makeMarkers(svg, "end-active", {"arrowhead": true, "active": true});
 		return svg;
 	},
+
+	// TODO: move this over to graph model
 	getData: function(url) {
 		var promise = $.Deferred();
 		var graph = {links: {}, nodes: {}};
@@ -245,116 +255,5 @@ app.GraphView = Backbone.View.extend({
 			promise.resolve(graph);
 		});
 		return promise;
-	}
-});
-
-/**
- * Graph objects are defined as follows:
- * 	 var graph = {links: {}, nodes: {}};
- *   links is an object keyed by edge id
- *   nodes is an object keyed by vertex name
- *   var links = {id1: edge1, id2: edge2, ... }
- *   var edge1 = {source: node1, target: node2, weight: 42, id: id1}
- *     source and target are actual references to node objects, (not labels!), id is an integer
- *   var nodes = {name1: node1, name2: node2, ... }
- *   var node1 = {adj: [edge5, edge6], name: name1, id: id1}
- *     name is a string, adj is is a list of outgoing edges (again, we store object references)
- *     id is a numeric ID
- *   Link and node objects are expected to be extended with other properties
- *   useful for graph traversal and visualization, e.g. distance from some source node,
- *   (x, y) coordinates of the node in visualization canvas, etc.
- */
-app.GraphModel = Backbone.Model.extend({
-	initialize: function(options) {
-		options = options || {};
-		var nVtxs = options.V || 7;
-		this.graph = {links: {}, nodes: {}};
-		this.masterModel = options.masterModel || new Backbone.Model({V: 4});
-		this.listenTo(this.masterModel, "change:V", function() {
-			this.set("V", this.masterModel.get("V"));
-		}.bind(this));
-		this.makeWorstCaseDijkstra(nVtxs);
-		Backbone.Model.prototype.initialize.apply(this, arguments);
-	},
-	graphElementPrototype: {
-		addStatus: function(s) {
-			this._status[s] = true;
-		},
-		addStickyStatus: function(s) {
-			this._stickyStatus[s] = true;
-		},
-		hasStatus: function(s) {
-			return _.has(this._status, s) || _.has(this._stickyStatus, s);
-		},
-		clearStatus: function() {
-			this._status = {};
-		},
-		clearStickyStatus: function() {
-			this._stickyStatus = {};
-		},
-		copyStatus: function(src) {
-			this._status = _.clone(src._status);
-		},
-		getStatus: function(options) {
-			options = options || {};
-			var status = _.extend({}, this._status, this._stickyStatus);
-			if (options.dict) {
-				return status;
-			} else if (options.list) {
-				return _.keys(status);
-			} else {
-				return _.keys(status).join(" ");
-			}
-		}
-	},
-	graphElementAttrs: {
-		_status: {},
-		_stickyStatus: {}
-	},
-	makeLink: function(attrs) {
-		var linkAttrs = attrs;
-		var link = Object.create(this.graphElementPrototype);
-		var elementAttrs = Object.create(this.graphElementAttrs);
-		return _.extend(link, linkAttrs, {
-			_status: {},
-			_stickyStatus: {}
-		});
-	},
-	makeNode: function(attrs) {
-		var nodeAttrs = _.defaults(attrs, {
-			adj: [],
-			name: ""
-		});
-		var node = Object.create(this.graphElementPrototype);
-		var elementAttrs = Object.create(this.graphElementAttrs);
-		return _.extend(node, nodeAttrs, {
-			_status: {},
-			_stickyStatus: {}
-		});
-	},
-	V: function() { return _.size(this.graph.nodes); },
-	E: function() { return _.size(this.graph.links); },
-	makeWorstCaseDijkstra: function(n) {
-		var graph = this.graph = {links: {}, nodes: {}};
-		if (n < 2) { return; }
-		var node, link;
-		var curLinkId = 0;
-		var i = 0;
-		// var srcNode = {adj: [], id: i, name: String(i)};
-		var srcNode = this.makeNode({id: i, name: String(i)});
-		graph.nodes[srcNode.id] = srcNode;
-		for (i = 1; i < n; ++i) {
-			node = this.makeNode({id: i, name: String(i)});
-			graph.nodes[node.id] = node;
-			link = this.makeLink({source: srcNode, target: node, weight: i - 1, id: curLinkId++});
-			graph.nodes[srcNode.id].adj.push(link);
-			graph.links[link.id] = link;
-			for (var j = i - 1; j > 0; --j) {
-				var weight = -Math.pow(2, i - 2) - i + j;
-				link = this.makeLink({source: node, target: graph.nodes[String(j)], weight: weight, id: curLinkId++});
-				graph.nodes[link.source.id].adj.push(link);
-				graph.links[link.id] = link;
-			}
-		}
 	}
 });
