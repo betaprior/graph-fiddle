@@ -9,8 +9,8 @@ app.GraphSimulationView = app.GraphView.extend({
 
 	initialize: function(options) {
 		options = options || {};
-		this._source = this.model.graph.nodes[options.sourceId || 0];
-		this._target = this.model.graph.nodes[options.targetId || 1];
+		this.setSource({id: options.sourceId || 0});
+		this.setTarget({id: options.targetId || 1});
 		this.timeout = options.timeout || 1000;
 		this.animationModel = options.animationModel;
 		this.next_step = 0;
@@ -34,7 +34,7 @@ app.GraphSimulationView = app.GraphView.extend({
 			if (this.animationModel.get("status") === "playing") {
 				var ps = this.animationModel.previous("status");
 				if (ps === "new" || ps === "finished") {
-					this.initializeDistances(this.model.graph, this._source.id);
+					this.initializeDistances(this.model.graph);
 					this.next_step = 0;
 				}
 				this.runActions(this.next_step);
@@ -46,14 +46,35 @@ app.GraphSimulationView = app.GraphView.extend({
 			// of the simulation is a no-op (or finalizes the simulation)
 			// TODO: FIXME: hitting "step back" at the beginning should either reset the simulation
 			// or loop to the last step (currently it goes to step 1)
-			if (this.animationModel.get("status") === "finished" && this.animationModel.get("req_steps") === 1) {
-				this.initializeDistances(this.model.graph, this._source.id);
-				this.next_step = 0;
-			}
+			// if (this.animationModel.get("status") === "finished" && this.animationModel.get("req_steps") === 1) {
+			// 	this.initializeDistances(this.model.graph);
+			// 	this.next_step = 0;
+			// }
 			this.animationModel.set("status", "paused");
 			this.runStep(this.next_step - 1 + this.animationModel.get("req_steps"));
 			this.animationModel.set("req_steps", 0);
 		});
+	},
+
+	/**
+	 *   Source and target getters
+	 */
+	getSource: function() {
+		return this.model.graph.nodes[this._sourceId];
+	},
+	getTarget: function() {
+		return this.model.graph.nodes[this._targetId];
+	},
+	/**
+	 *   Source and target setters. To keep setters and getters symmetric, they take node
+	 *   elements as arguments, but only the ID is stored internally.  Alternatively,
+	 *   {id: "foo"} hash may be passed in to give the ID explicitly.
+	 */
+	setSource: function(obj) {
+		this._sourceId = obj.id;
+	},
+	setTarget: function(obj) {
+		this._targetId = obj.id;
 	},
 
 	/**
@@ -134,11 +155,12 @@ app.GraphSimulationView = app.GraphView.extend({
 		});
 	},
 
-	initializeDistances: function(graph, source) {
+	initializeDistances: function(graph) {
 		_(graph.nodes).each(function(x) {
 			x.dist = Infinity;
 		});
-		graph.nodes[source].dist = 0;
+		var source = this.getSource();
+		graph.nodes[source.id].dist = 0;
 		this._prepNodeText({template: "pathfinding"});
 		this._resetDistanceDisplay();
 	},
@@ -153,7 +175,7 @@ app.GraphSimulationView = app.GraphView.extend({
 	},
 
 	deselectAll: function() {
-		this.d3el.selectAll("[id^=link]").classed("visiting", false);
+		this.d3el.selectAll("[id^=link]").classed("status-visiting", false);
 		this.d3el.selectAll("text.dist").classed("relaxing", false);
 	},
 
@@ -235,9 +257,25 @@ app.GraphSimulationView = app.GraphView.extend({
 		this.renderAnnotations(annotations);
 		var d3el = this.d3el;
 		// remove classes from previous steps
-		d3el.selectAll("[id^=link]").classed("visiting", false);
-		d3el.selectAll("[id^=link]").classed("active", false);
-		d3el.selectAll("[id^=node]").classed("visiting", false);
+		var d3GraphElements = d3el.selectAll(".link,.node");
+		d3GraphElements.each(function(d) {
+			var d3this = d3.select(this);
+			var oldClasses = _(d3this.attr("class").split(/\s+/)).filter(function(x) {
+				return !x.match(/^status/);
+			});
+			d3this.attr("class", oldClasses.join(" "));
+		});
+
+		// d3ClassesToUpdate = d3el.selectAll("[class^=status]");
+		// d3ClassesToUpdate.each(function(d) {
+		// 	d3this = d3.select(this);
+		// 	var classes = d3this.attr("class").split(/\s+/);
+		// 	d3this.attr("class") =  _(classes).filter(function(x) { return !x.match(/^status/); });
+		// });
+
+
+		// d3el.selectAll("[id^=link]").classed("active", false);
+		// d3el.selectAll("[id^=node]").classed("visiting", false);
 		d3el.selectAll("[id^=link]").attr("marker-end", "url(#end)");
 		d3el.selectAll("text.dist").classed("relaxing", false);
 		// update all the distances
@@ -247,9 +285,21 @@ app.GraphSimulationView = app.GraphView.extend({
 
 		// assign all the classes in accordance to passed graph status fields
 		d3el.selectAll(".link").attr("class", function(d) {
-			return d3.select(this).attr("class") + " " + step.graph.links[d.id].getStatus();
+			var status = step.graph.links[d.id].getStatus() || "";
+			if (status.length) {
+				status = status.split(/\s+/);
+				var status_ = [];
+				_(status).each(function(x) { status_.push("status-" + x); });
+				status = " " + status_.join(" ");
+			}
+			var sel = d3.select(this);
+			if (!sel.classed(status)) {
+				return d3.select(this).attr("class") + status;
+			} else {
+				return d3.select(this).attr("class");
+			}
 		}).each(function(d) {
-			if (d3.select(this).classed("active")) {
+			if (d3.select(this).classed("status-active")) {
 				d3.select(this).attr("marker-end", "url(#end-active)");
 			}
 		});
@@ -257,37 +307,30 @@ app.GraphSimulationView = app.GraphView.extend({
 		d3el.selectAll(".node").attr("class", function(d) {
 			var status = step.graph.nodes[d.id].getStatus() || "";
 			if (status.length) {
-				status = " " + status;
+				status = status.split(/\s+/);
+				var status_ = [];
+				_(status).each(function(x) { status_.push("status-" + x); });
+				status = " " + status_.join(" ");
 			}
 			return d3.select(this).attr("class") + status;
 		});
 	},
 
+	/**
+	 *   Record the state of the graph by storing a copy of the current graph
+	 *   and annotations array in the `actions` array.  It is assumed that the
+	 *   graph.copy() method creates deep copies of the relevant properties
+	 *   (e.g. the ones determining status).
+	 *   @param {Object} graph
+	 *   @param {Array}  annotations
+	 */
 	recordStep: function(graph, annotations) {
-		var step = {graph: {}, annotations: annotations};
-		step.graph.links = _.clone(graph.links);
-		step.graph.nodes = _.clone(graph.nodes);
-		// TODO: graph copy method
-		_(step.graph.links).each(function(v, k) {
-			step.graph.links[k] = _.clone(graph.links[k]);
-		});
-		_(step.graph.nodes).each(function(v, k) {
-			step.graph.nodes[k] = _.clone(graph.nodes[k]);
-		});
-		// TODO: change these method names to copy status and clear status
-		this.resetStatus(step.graph, graph);
-		step.annotations = annotations;
+		var step = {};
+		step.annotations = _.extend([], annotations);
+		step.graph = graph.copy();
 		this.actions.push(step);
 		// clear the graph status field
-		this.resetStatus(graph);
-	},
-
-	resetStatus: function(graph, srcGraph) {
-		var setBlankStatus = function(x) { x.clearStatus(); };
-		var cloneNodeStatus = function(x) { x.copyStatus(srcGraph.nodes[x.id]); };
-		var cloneLinkStatus = function(x) { x.copyStatus(srcGraph.links[x.id]); };
-		_(graph.nodes).each(!srcGraph ? setBlankStatus : cloneNodeStatus);
-		_(graph.links).each(!srcGraph ? setBlankStatus : cloneLinkStatus);
+		graph.clearStatus();
 	},
 
 	runStep: function(i) {

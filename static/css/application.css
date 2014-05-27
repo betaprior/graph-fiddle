@@ -25,19 +25,19 @@ path.link {
   stroke-width: 1.5px;
 }
 
-path.link.visiting {
+path.link.status-visiting {
     fill: none;
     stroke: #666;
     stroke-width: 3px;
 }
 
-path.link.active {
+path.link.status-active {
     fill: none;
     stroke: green;
     stroke-width: 3px;
 }
 
-path.arrowhead.active {
+path.arrowhead.status-active {
     fill: green;
     stroke: green;
 }
@@ -48,9 +48,15 @@ path.arrowhead.active {
   stroke-width: 1.5px;
 }
 
-.node.visiting > circle {
+.node.status-visiting > circle {
   fill: #ccc;
   stroke: #ff0;
+  stroke-width: 1.5px;
+}
+
+.node.status-finished > circle {
+  fill: #ec6;
+  stroke: #af0;
   stroke-width: 1.5px;
 }
 

@@ -16,7 +16,7 @@ var app = app || {};
  *     useful for graph traversal and visualization, e.g. distance from some source node,
  *     (x, y) coordinates of the node in visualization canvas, etc.
  *
- *   TODO: implement copy method
+ *   TODO: refactor copy method
  */
 app.GraphModel = Backbone.Model.extend({
 
@@ -28,7 +28,7 @@ app.GraphModel = Backbone.Model.extend({
 	initialize: function(options) {
 		options = options || {};
 		var nVtxs = options.V || 5;
-		this.graph = {links: {}, nodes: {}};
+		this.graph = this.makeGraph();
 		// TODO: FIXME: don't use a master model; instead, the global control
 		// should iterate through views updating their graph models explicitly
 		this.masterModel = options.masterModel || new Backbone.Model({V: nVtxs});
@@ -36,6 +36,44 @@ app.GraphModel = Backbone.Model.extend({
 			this.set("V", this.masterModel.get("V"));
 		}.bind(this));
 		this.makeWorstCaseDijkstra(nVtxs);
+	},
+
+	/**
+	 *   Basic API for graph data and operations
+	 */
+	graphPrototype: {
+		clearStatus: function(options) {
+			options = options || {};
+			var clearStatus;
+			if (options.sticky) {
+				clearStatus = function(v) { v.clearStatus(); v.clearStickyStatus(); };
+			} else {
+				clearStatus = function(v) { v.clearStatus(); };
+			}
+			_(this.nodes).each(clearStatus);
+			_(this.links).each(clearStatus);
+		},
+		// TODO: unf*ck this constructor logic
+		copy: function() {
+			var h = Object.create(Object.getPrototypeOf(this));
+			// deep-copy the contents of graph elements
+			h.links = {};
+			h.nodes = {};
+			_(this.links).each(function(v, k) {
+				h.links[k] = v.copy();
+			});
+			_(this.nodes).each(function(v, k) {
+				h.nodes[k] = v.copy();
+			});
+			// shallow-copy all other attributes
+			return _.defaults(h, this);
+		}
+	},
+	makeGraph: function() {
+		var g = Object.create(this.graphPrototype);
+		g.links = {};
+		g.nodes = {};
+		return g;
 	},
 
 	/**
@@ -72,10 +110,23 @@ app.GraphModel = Backbone.Model.extend({
 			} else {
 				return _.keys(status).join(" ");
 			}
+		},
+		copy: function() {
+			var c = Object.create(Object.getPrototypeOf(this));
+			// create deep copy
+			var cpy = $.extend(true, {}, this);
+			// but only copy own properties
+			for (var attr in this) {
+				if (this.hasOwnProperty(attr)) {
+					c[attr] = cpy[attr];
+				}
+			}
+			return c;
 		}
 	},
 
-	graphElementAttrs: {
+	// common attributes for graph element objects
+	_graphElementAttrs: {
 		_status: {},
 		_stickyStatus: {}
 	},
@@ -84,30 +135,28 @@ app.GraphModel = Backbone.Model.extend({
 	 *   Factory method for making graph links
 	 */
 	makeLink: function(attrs) {
-		var linkAttrs = attrs;
 		var link = Object.create(this.graphElementPrototype);
-		// var elementAttrs = Object.create(this.graphElementAttrs);
-		// ^ this doesn't work when I use _.extend(link, linkAttrs, this.graphElementAttrs); why?
-		return _.extend(link, linkAttrs, {
-			_status: {},
-			_stickyStatus: {}
-		});
+		attrs = $.extend(true, attrs, this._graphElementAttrs);
+		for (var a in attrs) {
+			link[a] = attrs[a];
+		}
+		return link;
 	},
 
 	/**
 	 *   Factory method for making graph nodes
 	 */
 	makeNode: function(attrs) {
-		var nodeAttrs = _.defaults(attrs, {
+		attrs = _.defaults(attrs, {
 			adj: [],
 			name: ""
 		});
+		attrs = $.extend(true, attrs, this._graphElementAttrs);
 		var node = Object.create(this.graphElementPrototype);
-		// var elementAttrs = Object.create(this.graphElementAttrs);
-		return _.extend(node, nodeAttrs, {
-			_status: {},
-			_stickyStatus: {}
-		});
+		for (var a in attrs) {
+			node[a] = attrs[a];
+		}
+		return node;
 	},
 
 	V: function() { return _.size(this.graph.nodes); },
@@ -115,7 +164,7 @@ app.GraphModel = Backbone.Model.extend({
 	E: function() { return _.size(this.graph.links); },
 
 	makeWorstCaseDijkstra: function(n) {
-		var graph = this.graph = {links: {}, nodes: {}};
+		var graph = this.graph = this.makeGraph();
 		if (n < 2) { return; }
 		var node, link;
 		var curLinkId = 0;

@@ -22,7 +22,7 @@ app.GraphView = Backbone.View.extend({
 		if (options.loadData) {
 			this.graphPromise = this.getData(options.loadData);
 		}
-		this.options = _.defaults(options, {nodeLabels: false});
+		this.options = _.defaults(options, {nodeLabels: true});
 		this.width = 400;
 		this.height = 400;
 		this.nodeR = 20;
@@ -213,7 +213,7 @@ app.GraphView = Backbone.View.extend({
 
 		// build the arrow end markers
 		this.makeMarkers(svg, "end");
-		this.makeMarkers(svg, "end-active", {"arrowhead": true, "active": true});
+		this.makeMarkers(svg, "end-active", {"arrowhead": true, "status-active": true});
 		return svg;
 	},
 

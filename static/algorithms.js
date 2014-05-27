@@ -27,12 +27,12 @@ app.AnimatedSimulationBase = app.GraphSimulationView.extend({
 	},
 	render: function() {
 		this.actions = [];
+		this.model.graph.clearStatus();
 		this.renderGraph(this.model.graph);
-		this.resetStatus(this.model.graph);
-		this.recordAnimatedAlgorithm(this.model.graph, this._source, this._target);
+		this.recordAnimatedAlgorithm(this.model.graph);
 		return this;
 	},
-	recordAnimatedAlgorithm: function(graph, source, target) {
+	recordAnimatedAlgorithm: function(graph) {
 
 	}
 });
@@ -40,7 +40,9 @@ app.AnimatedSimulationBase = app.GraphSimulationView.extend({
 
 app.DijkstraView = app.AnimatedSimulationBase.extend({
 /* BEGIN ALGORITHM dijkstra */
-	recordAnimatedAlgorithm: function(graph, source, target) {
+	recordAnimatedAlgorithm: function(graph) {
+		var source = this.getSource();
+		var target = this.getTarget();
 		this.initializeDistances(graph, source.id);
 		this.addNodeClass(source.id, "source");
 		this.addNodeClass(target.id, "target");
@@ -88,7 +90,9 @@ app.DijkstraView = app.AnimatedSimulationBase.extend({
 
 app.BellmanFordView = app.AnimatedSimulationBase.extend({
 /* BEGIN ALGORITHM bellman-ford */
-	recordAnimatedAlgorithm: function(graph, source, target) {
+	recordAnimatedAlgorithm: function(graph) {
+		var source = this.getSource();
+		var target = this.getTarget();
 		this.addNodeClass(source.id, "source");
 		this.addNodeClass(target.id, "target");
 		var V = this.model.V();
@@ -124,7 +128,7 @@ app.BellmanFordView = app.AnimatedSimulationBase.extend({
 
 app.TopoSortSsspView = app.AnimatedSimulationBase.extend({
 /* BEGIN ALGORITHM toposort */
-	recordAnimatedAlgorithm: function(graph, source, target) {
+	recordAnimatedAlgorithm: function(graph) {
 	var	topoSort = function(graph, startId) {
 		var sorted = [];
 		var dfs = function(fromNode) {
@@ -140,6 +144,8 @@ app.TopoSortSsspView = app.AnimatedSimulationBase.extend({
 		return sorted;
 	};
 
+		var source = this.getSource();
+		var target = this.getTarget();
 		this.initializeDistances(graph, source.id);
 		this.addNodeClass(source.id, "source");
 		this.addNodeClass(target.id, "target");

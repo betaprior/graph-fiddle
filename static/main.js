@@ -454,7 +454,7 @@ app.AlgoModel = Backbone.Model.extend({
 		"user_defined": false,
 		"default_code": "",
 		// TODO: make the default edited_code text less kludgy
-		"edited_code": "this.graphView.recordAnimatedAlgorithm = function(graph, source, target) {\
+		"edited_code": "this.graphView.recordAnimatedAlgorithm = function(graph) {\
 \
 }",
 		// This is a "hereDoc" hack to parse a multi-line string from a comment into a variable
@@ -463,7 +463,9 @@ app.AlgoModel = Backbone.Model.extend({
 		"edited_code_": hereDoc(function() {/*!
     console.log("IN DYNAMICALLY LOADED CODE");
     this.testing = "HELLO";
- 	this.graphView.recordAnimatedAlgorithm = function(graph, source, target) {
+ 	this.graphView.recordAnimatedAlgorithm = function(graph) {
+		var source = this.getSource();
+		var target = this.getTarget();
  		this.initializeDistances(graph, source.id);
 		target = graph.nodes[3];
  		this.addNodeClass(source.id, "source");
