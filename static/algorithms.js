@@ -32,8 +32,18 @@ app.AnimatedSimulationBase = app.GraphSimulationView.extend({
 		this.recordAnimatedAlgorithm(this.model.graph);
 		return this;
 	},
+	// Proxy some graph methods here to make the API less confusing
+	// for the algorithm methods
+	addToPath: function() {
+		return this.model.graph.addToPath.apply(this.model.graph, arguments);
+	},
+	tracePath: function() {
+		return this.model.graph.tracePath.apply(this.model.graph, arguments);
+	},
+	/**
+	 * Stub function for algo recording
+	 */
 	recordAnimatedAlgorithm: function(graph) {
-
 	}
 });
 
@@ -65,7 +75,7 @@ app.DijkstraView = app.AnimatedSimulationBase.extend({
 				annotations.push(this.makeStepAnnotation(edge));
 				if (this.isTense(edge)) {
 					newDist = this.relax(edge);
-					edgeTo[edge.target.id] = edge;
+					this.addToPath(edge);
 					if (edge.target.id === target.id) {
 						curDist = newDist;
 					}
@@ -77,10 +87,7 @@ app.DijkstraView = app.AnimatedSimulationBase.extend({
 				}
 				annotations.push(this.makeShortestPathAnnotation(curDist));
 				graph.links[edge.id].addStatus("visiting");
-				var curPath = this.constructPath(edge.target, edgeTo);
-				_(curPath).each(function(link) {
-					graph.links[link.id].addStatus("active");
-				});
+				this.tracePath(edge.target, {addStatus: "active"});
 				this.recordStep(graph, annotations);
 			}
 		}
@@ -108,17 +115,14 @@ app.BellmanFordView = app.AnimatedSimulationBase.extend({
 				annotations.push(this.makeStepAnnotation(edge));
 				if (this.isTense(edge)) {
 					var newDist = this.relax(edge);
-					edgeTo[edge.target.id] = edge;
+					this.addToPath(edge);
 					if (edge.target.id === target.id) {
 						curDist = newDist;
 					}
 				}
 				annotations.push(this.makeShortestPathAnnotation(curDist));
-				var curPath = this.constructPath(edge.target, edgeTo);
 				graph.links[edge.id].addStatus("visiting");
-				_(curPath).each(function(link) {
-					graph.links[link.id].addStatus("active");
-				});
+				this.tracePath(edge.target, {addStatus: "active"});
 				this.recordStep(graph, annotations);
 			}.bind(this));
 		}
@@ -173,14 +177,11 @@ app.TopoSortSsspView = app.AnimatedSimulationBase.extend({
 					if (edge.target.id === target.id) {
 						curDist = newDist;
 					}
-					edgeTo[edge.target.id] = edge;
+					this.addToPath(edge);
 				}
 				// annotations[1] = this.makeShortestPathAnnotation(curDist);
 				annotations.push(this.makeShortestPathAnnotation(curDist));
-				var curPath = this.constructPath(edge.target, edgeTo);
-				_(curPath).each(function(link) {
-					graph.links[link.id].addStatus("active");
-				});
+				this.tracePath(edge.target, {addStatus: "active"});
 				this.recordStep(graph, annotations);
 				console.log("recording step w/ path " + annotations[1].text);
 			}.bind(this));

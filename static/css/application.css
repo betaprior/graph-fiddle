@@ -54,9 +54,15 @@ path.arrowhead.status-active {
   stroke-width: 1.5px;
 }
 
+.node.status-exploring > circle {
+  fill: #eec;
+  stroke: #baf;
+  stroke-width: 1.5px;
+}
+
 .node.status-finished > circle {
   fill: #ec6;
-  stroke: #af0;
+  stroke: red;
   stroke-width: 1.5px;
 }
 

@@ -53,6 +53,23 @@ app.GraphModel = Backbone.Model.extend({
 			_(this.nodes).each(clearStatus);
 			_(this.links).each(clearStatus);
 		},
+		addToPath: function(edge) {
+			this.edgeTo[edge.target.id] = edge;
+		},
+		tracePath: function(target, options) {
+			options = options || {};
+			var path = [], edge;
+			while ((edge = this.edgeTo[target.id])) {
+				path.push(edge);
+				target = edge.source;
+				options.addStatus && this.links[edge.id].addStatus(options.addStatus);
+				options.addStickyStatus && this.links[edge.id].addStickyStatus(options.addStickyStatus);
+				options.removeStatus && this.links[edge.id].removeStatus(options.removeStatus);
+				options.removeStickyStatus && this.links[edge.id].removeStickyStatus(options.removeStickyStatus);
+			}
+			path.reverse();
+			return path;
+		},
 		// TODO: unf*ck this constructor logic
 		copy: function() {
 			var h = Object.create(Object.getPrototypeOf(this));
@@ -65,6 +82,7 @@ app.GraphModel = Backbone.Model.extend({
 			_(this.nodes).each(function(v, k) {
 				h.nodes[k] = v.copy();
 			});
+			h.edgeTo = _.clone(this.edgeTo);
 			// shallow-copy all other attributes
 			return _.defaults(h, this);
 		}
@@ -73,6 +91,7 @@ app.GraphModel = Backbone.Model.extend({
 		var g = Object.create(this.graphPrototype);
 		g.links = {};
 		g.nodes = {};
+		g.edgeTo = {};
 		return g;
 	},
 
@@ -85,8 +104,14 @@ app.GraphModel = Backbone.Model.extend({
 		addStatus: function(s) {
 			this._status[s] = true;
 		},
+		removeStatus: function(s) {
+			this._status[s] = false;
+		},
 		addStickyStatus: function(s) {
 			this._stickyStatus[s] = true;
+		},
+		removeStickyStatus: function(s) {
+			this._stickyStatus[s] = false;
 		},
 		hasStatus: function(s) {
 			return _.has(this._status, s) || _.has(this._stickyStatus, s);
