@@ -84,7 +84,7 @@ app.GraphSimulationView = app.GraphView.extend({
 	 *   next to the new one (styled accodingly, e.g. with a strikethrough font).
 	 */
 	visualizeDistances: function(step, prevStep, options) {
-		var d3el = this.d3el;
+		var d3el = this.d3el();
 		d3el.selectAll(".node").select("text")
 			.each(function(d) {
 				var oldText = "";
@@ -137,7 +137,7 @@ app.GraphSimulationView = app.GraphView.extend({
 				throw new Error("Unimplemented template " + templateName);
 			}
 		};
-		var d3text = this.d3el.selectAll("[id^=node]").select("text");
+		var d3text = this.d3el().selectAll("[id^=node]").select("text");
 		d3text.selectAll("tspan").remove();
 		appendTemplate(d3text, options.template);
 	},
@@ -147,7 +147,7 @@ app.GraphSimulationView = app.GraphView.extend({
 	 *   By default, distances are displayed in the "new" tspan.
 	 */
 	_resetDistanceDisplay: function() {
-		var d3nodes = this.d3el.selectAll("[id^=node]");
+		var d3nodes = this.d3el().selectAll("[id^=node]");
 		d3nodes.select("text > tspan#old").text("");
 		d3nodes.select("text > tspan#spc").text("");
 		d3nodes.select("text > tspan#new").text(function(d) {
@@ -175,8 +175,8 @@ app.GraphSimulationView = app.GraphView.extend({
 	},
 
 	deselectAll: function() {
-		this.d3el.selectAll("[id^=link]").classed("status-visiting", false);
-		this.d3el.selectAll("text.dist").classed("relaxing", false);
+		this.d3el().selectAll("[id^=link]").classed("status-visiting", false);
+		this.d3el().selectAll("text.dist").classed("relaxing", false);
 	},
 
 	pathToString: function(path) {
@@ -255,7 +255,7 @@ app.GraphSimulationView = app.GraphView.extend({
 		// update step # annotation
 		var annotations = [this.makeStepNumberAnnotation(this.next_step)].concat(step.annotations);
 		this.renderAnnotations(annotations);
-		var d3el = this.d3el;
+		var d3el = this.d3el();
 		// remove classes from previous steps
 		var d3GraphElements = d3el.selectAll(".link,.node");
 		d3GraphElements.each(function(d) {

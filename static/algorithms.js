@@ -47,10 +47,27 @@ app.AnimatedSimulationBase = app.GraphSimulationView.extend({
 	}
 });
 
+/**
+ *   registerAlgorithm
+ *
+ *   Insert an algorithm code snippet into the app's global `algorithms` object
+ *
+ *   Arguments:
+ *   -params: object with fields {id, title, code}
+ */
+app.registerAlgorithm = function(params) {
+	app.algorithms = app.algorithms || {};
+	if (!(params.id && params.title && params.code)) {
+		throw new Error("params object must provide id, title, and code");
+	}
+	app.algorithms[params.id] = {title: params.title, code: params.code};
+};
 
-app.DijkstraView = app.AnimatedSimulationBase.extend({
+app.registerAlgorithm({
+	id: "dijkstra",
+	title: "Dijkstra's algorithm",
+	code: function(graph) {
 /* BEGIN ALGORITHM dijkstra */
-	recordAnimatedAlgorithm: function(graph) {
 		var source = this.getSource();
 		var target = this.getTarget();
 		this.initializeDistances(graph, source.id);
@@ -91,13 +108,16 @@ app.DijkstraView = app.AnimatedSimulationBase.extend({
 				this.recordStep(graph, annotations);
 			}
 		}
-	}
 /* END ALGORITHM */
+	}
 });
 
-app.BellmanFordView = app.AnimatedSimulationBase.extend({
+
+app.registerAlgorithm({
+	id: "bellman-ford",
+	title: "Bellman-Ford (double for-loop)",
+	code: function(graph) {
 /* BEGIN ALGORITHM bellman-ford */
-	recordAnimatedAlgorithm: function(graph) {
 		var source = this.getSource();
 		var target = this.getTarget();
 		this.addNodeClass(source.id, "source");
@@ -126,13 +146,15 @@ app.BellmanFordView = app.AnimatedSimulationBase.extend({
 				this.recordStep(graph, annotations);
 			}.bind(this));
 		}
-	}
 /* END ALGORITHM */
+	}
 });
 
-app.TopoSortSsspView = app.AnimatedSimulationBase.extend({
+app.registerAlgorithm({
+	id: "toposort",
+	title: "Relaxing edges in topological order",
 /* BEGIN ALGORITHM toposort */
-	recordAnimatedAlgorithm: function(graph) {
+	code: function(graph) {
 	var	topoSort = function(graph, startId) {
 		var sorted = [];
 		var dfs = function(fromNode) {
@@ -186,6 +208,6 @@ app.TopoSortSsspView = app.AnimatedSimulationBase.extend({
 				console.log("recording step w/ path " + annotations[1].text);
 			}.bind(this));
 		}
-	}
 /* END ALGORITHM */
+	}
 });

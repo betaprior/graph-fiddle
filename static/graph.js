@@ -26,8 +26,11 @@ app.GraphView = Backbone.View.extend({
 		this.width = 400;
 		this.height = 400;
 		this.nodeR = 20;
-		this.d3el = d3.select(this.el);
 		this.cola = cola;
+	},
+
+	d3el: function() {
+		return d3.select(this.el);
 	},
 
 	render: function() {
@@ -42,15 +45,15 @@ app.GraphView = Backbone.View.extend({
 	},
 
 	addNodeClass: function(id, class_) {
-		this.d3el.select("#node" + id).classed(class_, true);
+		this.d3el().select("#node" + id).classed(class_, true);
 	},
 
 	addLinkClass: function(id, class_) {
-		this.d3el.select("#link" + id).classed(class_, true);
+		this.d3el().select("#link" + id).classed(class_, true);
 	},
 
 	renderAnnotations: function(annotations) {
-		var d3annotations = this.d3el.select("#annotations").selectAll(".annotation-item")
+		var d3annotations = this.d3el().select("#annotations").selectAll(".annotation-item")
 				.data(annotations);
 
 		var d3text = d3annotations.enter()

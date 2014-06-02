@@ -173,18 +173,36 @@ form.global-controls::after {
     content: "Global Controls";
 }
 
-div.algo-container {
-    position: relative;
-    margin: 15px 0;
-    padding: 39px 19px 14px;
-    background-color: white;
-    border: 1px solid #DDD;
-    -webkit-border-radius: 4px;
-    -moz-border-radius: 4px;
-    border-radius: 4px;
+.modal.modal-wide .modal-dialog {
+  width: 90%;
+}
+.modal-wide .modal-body {
+  overflow-y: auto;
 }
 
-div.algo-container::after {
+/* editor tabs styling */
+.nav-tabs > li .close {
+	margin: -2px 0 0 10px;
+	font-size: 18px;
+}
+
+/* main layout panels */
+.labeled-panel {
+    position: relative;
+    /* margin: 15px 0; */
+    padding: 20px 00px 0px;
+    /* background-color: white; */
+    /* border: 1px solid #DDD; */
+    /* -webkit-border-radius: 4px; */
+    /* -moz-border-radius: 4px; */
+    /* border-radius: 4px; */
+}
+
+.labeled-panel.algo-container {
+    padding: 40px 0px 14px;
+}
+
+.labeled-panel::after {
     position: absolute;
     top: -1px;
     left: -1px;
@@ -197,18 +215,15 @@ div.algo-container::after {
     -webkit-border-radius: 4px 0 4px 0;
     -moz-border-radius: 4px 0 4px 0;
     border-radius: 4px 0 4px 0;
-    content: attr(data-content)
+    /* content: "test" */
+    content: attr(data-content);
 }
 
-.modal.modal-wide .modal-dialog {
-  width: 90%;
-}
-.modal-wide .modal-body {
-  overflow-y: auto;
+.add-algo-placeholder .fa-plus {
+    font-size: 50px;
+    color: #9DA0A4;
 }
 
-/* editor tabs styling */
-.nav-tabs > li .close {
-	margin: -2px 0 0 10px;
-	font-size: 18px;
+.add-algo-placeholder #add-algo-clickable-frame {
+    border: 0px solid #DDD;
 }

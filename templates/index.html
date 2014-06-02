@@ -27,7 +27,8 @@
     <script type=text/javascript src="{{url_for('static', filename='graph.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='graph_simulation.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='algorithms.js') }}"></script>
-    <script type=text/javascript src="{{url_for('static', filename='main.js') }}"></script>
+    <!-- <script type=text/javascript src="{{url_for('static', filename='main.js') }}"></script> -->
+    <script type=text/javascript src="{{url_for('static', filename='ui.js') }}"></script>
 
     <script type=text/javascript src="{{url_for('static', filename='lib/bootstrap-3.1.1/js/bootstrap.min.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='lib/bootstrap-modal/src/backbone.bootstrap-modal.js') }}"></script>
@@ -43,55 +44,116 @@
       <div class="modal-backdrop"></div>
     </script>
 
+    <script id="spinner-template" type="text/template">
+      <div class="input-group spinner">
+        <input type="text" class="form-control" value="6">
+        <div class="input-group-btn-vertical">
+          <button class="btn btn-default"><i class="fa fa-caret-up"></i></button>
+          <button class="btn btn-default"><i class="fa fa-caret-down"></i></button>
+        </div>
+      </div>
+    </script>
+
+    <script id="demos-list-template" type="text/template">
+      <div class="container row">
+        <div class="panel panel-default labeled-panel">
+          <div class="panel-body">
+            <ul class="nav nav-pills">
+              <li class="active"><a href="#">Worst Dijkstra Ever</a></li>
+              <li><a href="#">Shortest Paths in DAGs</a></li>
+              <li><a href="#">DFS</a></li>
+              <li><a href="#">Blank</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </script>
+
+    <script id="explanation-template" type="text/template">
+      <div class="container row">
+        <div class="panel panel-default labeled-panel" data-content="Description">
+          <div class="panel-body">
+          </div>
+        </div>
+      </div>
+    </script>
+
+    <script id="graphviz-template" type="text/template">
+      <!-- Note that the following div has only row class and not a container class.
+        This is totally a hack to get the desired padding behavior for the algo-container class-->
+      <div class="row" id="algo-view-container">
+      </div>
+    </script>
+
+    <script id="algoview-template" type="text/template">
+      <div class="col-md-6">
+        <div class="algo-container panel panel-default labeled-panel">
+          <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
+          <div class="view-wrapper">
+            <div class="animation-controls-container"></div>
+            <div class="graph-container"></div>
+          </div>
+        </div>
+      </div>
+    </script>
+
+    <script id="algoview-placeholder-template" type="text/template">
+      <div class="col-md-6">
+        <div class="panel panel-default algo-container add-algo-placeholder">
+          <a id="add-algo-clickable" href="#">
+            <div id="add-algo-clickable-frame">
+              <div>
+                <span class="fa fa-plus"></span>
+              </div>
+              <div>
+                <span class="annotation">add graph</span>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </script>
+
+    <script id="animation-controls-template" type="text/template">
+	  <a id="play" class="btn btn-default">
+        <span class="fa fa-play"></span>
+        <span class="mylabel">Run</span>
+      </a>
+      <a id="step-back" class="btn btn-default">
+        <span class="fa fa-step-backward"></span>
+      </a>
+      <a id="step-fwd" class="btn btn-default">
+        <span class="fa fa-step-forward"></span>
+      </a>
+    </script>
+
+    <script id="graph-options-template" type="text/template">
+      <div class="container row">
+        <div class="panel panel-default labeled-panel" data-content="Graph options">
+          <div class="panel-body">
+            <div id="type-selector">
+              <div class="btn-group">
+                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                  Graph Type
+                  <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a href="#">Complete DAG</a></li>
+                  <li><a href="#">Binary Search Tree</a></li>
+                </ul>
+              </div>
+            </div>
+            <div id="vertex-spinner"></div>
+          </div>
+        </div>
+      </div>
+    </script>
+
 
 </head>
 <body>
   <div id="app-container" class="container">
-    <h1>Worst. Dijkstra. Ever.</h1>
-    <div id="graph-controls-container">
-      <form class="form-inline controls-set global-controls" role="form">
-        <div class="form-group" id="spinner-form-group"></div>
-        <div class="form-group" id="play-controls-form-group"></div>
-      </form>
-    </div>
-    <div class="row" id="algo-view-container">
-      <div class="col-md-6" id="dijkstra-container">
-        <div class="algo-container"> <!-- container with the border -->
-          <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
-          <div class="view-wrapper"> <!-- shrink-wrapped inline block -->
-            <div class="animation-controls-container"></div>
-            <div class="graph-container"></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-6" id="bellman-ford-container">
-        <div class="algo-container">
-          <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
-          <div class="view-wrapper">
-            <div class="animation-controls-container"></div>
-            <div class="graph-container"></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-6" id="toposort-container">
-        <div class="algo-container">
-          <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
-          <div class="view-wrapper">
-            <div class="animation-controls-container"></div>
-            <div class="graph-container"></div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-6" id="user-defined-container">
-        <div class="algo-container">
-          <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
-          <div class="view-wrapper">
-            <div class="animation-controls-container"></div>
-            <div class="graph-container"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <h1>Graphania 1.0</h1>
   </div>
 </body>
 </html>
