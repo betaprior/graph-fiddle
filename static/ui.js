@@ -25,18 +25,33 @@ app.UISettingsModel = Backbone.Model.extend({
  */
 app.DemosPresetsCollection = Backbone.Collection.extend({
 	initialize: function() {
-		this.makeWorstDijkstraPresets();
-		this.makeBSTPresets();
-		this.makeTopoSortPresets();
+		this.generators = {
+			worst_dijkstra: this.makeWorstDijkstraPresets,
+			bst: this.makeBSTPresets,
+			toposort: this.makeTopoSortPresets,
+			blank:this.makeBlankPresets
+		};
+		_.each(this.generators, function(gen, id) {
+			var model = new app.UISettingsModel({current_demo: id});
+			gen(model);
+			this.add(model);
+		}.bind(this));
 	},
+
+	populateSettingsModel: function(model, id) {
+		if (id === void 0) {
+			id = model.get("current_demo");
+		}
+		this.generators[id](model);
+	},
+
 	getDefault: function() {
 		var model = this.find(function(x) {
 			return x.get("title") === "Worst Dijkstra";
 		});
 		return model;
 	},
-	makeWorstDijkstraPresets: function() {
-		var model = new app.UISettingsModel();
+	makeWorstDijkstraPresets: function(model) {
 		model.set({
 			title: "Worst Dijkstra",
 			V: 6,
@@ -46,10 +61,8 @@ app.DemosPresetsCollection = Backbone.Collection.extend({
 					"bellman-ford",
 					"toposort"]
 		});
-		this.add(model);
 	},
-	makeBSTPresets: function() {
-		var model = new app.UISettingsModel();
+	makeBSTPresets: function(model) {
 		model.set({
 			title: "Binary Trees",
 			V: 16,
@@ -57,10 +70,8 @@ app.DemosPresetsCollection = Backbone.Collection.extend({
 			explanation_visibility: "collapsed",
 			algos: ["dfs"]
 		});
-		this.add(model);
 	},
-	makeTopoSortPresets: function() {
-		var model = new app.UISettingsModel();
+	makeTopoSortPresets: function(model) {
 		model.set({
 			title: "Topological Sort",
 			V: 6,
@@ -69,7 +80,15 @@ app.DemosPresetsCollection = Backbone.Collection.extend({
 			explanation_visibility: "hidden",
 			algos: []
 		});
-		this.add(model);
+	},
+	makeBlankPresets: function(model) {
+		model.set({
+			title: "Blank",
+			V: 5,
+			graph_type: "",
+			explanation_visibility: "hidden",
+			algos: []
+		});
 	}
 });
 
@@ -83,7 +102,7 @@ app.SpinnerBoxView = Backbone.View.extend({
 	initialize: function(options) {
 		options = options || {};
 		this.template = _.template($("#spinner-template").html());
-		this.min = 1;
+		this.min = 2; // TODO: make sure existing algos work with a single-vtx graph
 		this.max = options.max || 100;
 		this.defaultVal = options.val || 4;
 	},
@@ -93,6 +112,10 @@ app.SpinnerBoxView = Backbone.View.extend({
 		this.$spinner = this.$(".spinner input");
 		this._initSpinner();
 		return this;
+	},
+
+	set: function(val) {
+		this.$spinner.val(val);
 	},
 
 	_bindSpinnerArrows: function() {
@@ -142,16 +165,44 @@ app.SpinnerBoxView = Backbone.View.extend({
 
 /**
  *   DemosListView
+ *
+ *   Displays a selectable list of demos.
+ *
+ *   Arguments (in options hash):
+ *   - collection: collection of `UISettingsModel`s for the presets
+ *   - model: current UISettingsModel
  */
 app.DemosListView = Backbone.View.extend({
 	initialize: function() {
 		this.template = _.template($("#demos-list-template").html());
 		this.label = "Presets";
+		this.listenTo(this.model, "change:current_demo", this._updateDemoButton);
+	},
+
+	_updateDemoButton: function() {
+		var $presetsList = this.$("ul.presets-list");
+		this.$("li", $presetsList).removeClass("active");
+		this.$("li#" + this.model.get("current_demo"), $presetsList).addClass("active");
+	},
+
+	_makeItemElement: function(model) {
+		return $("<li id='" + model.get("current_demo") + "'><a href='#'>" +
+				 model.get("title") + "</a></li>");
 	},
 
 	render: function() {
 		this.$el.html(this.template);
 		this.$(".labeled-panel").attr("data-content", this.label);
+		var $presetsList = this.$("ul.presets-list");
+		var setDemo = function(x) { this.model.set("current_demo", x); }.bind(this);
+		this.collection.each(function(presetModel) {
+			var $presetItem = this._makeItemElement(presetModel);
+			$presetItem.click(function(e) {
+				setDemo($(this).attr("id"));
+			});
+			$presetsList.append($presetItem);
+		}.bind(this));
+		this._updateDemoButton();
 		return this;
 	}
 });
@@ -166,10 +217,16 @@ app.DemosListView = Backbone.View.extend({
 app.ExplanationView = Backbone.View.extend({
 	initialize: function() {
 		this.template = _.template($("#explanation-template").html());
+		this.listenTo(this.model, "change:explanation_visibility change:current_demo", this.render);
 	},
 
 	render: function() {
 		this.$el.html(this.template);
+		if (this.model.get("explanation_visibility") === "hidden") {
+			this.$el.hide();
+		} else {
+			this.$el.show();
+		}
 		this.$(".panel-body").text("I am a " + this.model.get("explanation_visibility") + " explanation!");
 		return this;
 	}
@@ -177,13 +234,34 @@ app.ExplanationView = Backbone.View.extend({
 
 /**
  *   GraphOptionsView
+ *
+ *   Displays global options for a graph.
+ *
+ *   Arguments (in the options hash):
+ *   - model: UISettings model whose attributes include [graph_type, V]
+ *
+ *   Options:
+ *   - presets: a set of {id: "title"} KV pairs to populate the graph choice menu
  */
 app.GraphOptionsView = Backbone.View.extend({
-	initialize: function() {
+	initialize: function(options) {
+		this.options = options || (options = {});
+		if (!options.presets) {
+			var gm = new app.GraphModel;
+			this.options.presets = gm.getGraphTypes({titleOnly: true});
+		}
 		this.template = _.template($("#graph-options-template").html());
 		this.spinnerView = new app.SpinnerBoxView();
+		this._bindEvents();
+	},
+
+	_bindEvents: function() {
 		this.listenTo(this.spinnerView, "update", function(x) {
-			console.log("Spinner updated with value " + x);
+			this.model.set("V", x);
+		});
+		this.listenTo(this.model, "change:V change:graph_type", function() {
+			this._updateButtonLabel();
+			this.spinnerView.set(this.model.get("V"));
 		});
 	},
 
@@ -191,7 +269,32 @@ app.GraphOptionsView = Backbone.View.extend({
 		this.$el.html(this.template);
 		var $spinner = this.$("#vertex-spinner");
 		this.spinnerView.setElement($spinner).render();
+		this._populateGraphChoices();
+		this._updateButtonLabel();
+		this.spinnerView.set(this.model.get("V"));
 		return this;
+	},
+
+	_updateButtonLabel: function() {
+		var text = this.options.presets[this.model.get("graph_type")];
+		if (!text) {
+			text = "";
+		}
+		this.$("button.dropdown-toggle .my-label").text(text);
+	},
+
+	_populateGraphChoices: function() {
+		var $graphList = this.$(".graph-choices");
+		var setType = function(x) { this.model.set("graph_type", x); }.bind(this);
+		var updateLabel = _.bind(this._updateButtonLabel, this);
+		_.each(this.options.presets, function(v, k) {
+			var $item = $("<li id='" + k + "'><a href='#'>" + v + "</a></li>");
+			$item.click(function(e) {
+				setType($(this).attr("id"));
+				updateLabel();
+			});
+			$graphList.append($item);
+		});
 	}
 });
 
@@ -209,8 +312,20 @@ app.GraphVizView = Backbone.View.extend({
 		if (!options.model.has("algos") || !options.model.has("V")) {
 			throw new Error("UI model has to provide a list of algorithms and # of vertices.");
 		}
-		var algos = options.model.get("algos");
-		var V = options.model.get("V");
+		this._setupAlgoViews();
+		this.addAlgoView = new app.AddAlgoView();
+		this.listenTo(this.model, "change:V change:graph_type change:algos", function() {
+			this._setupAlgoViews();
+			this.render();
+		});
+	},
+
+	_setupAlgoViews: function() {
+		var algos = this.model.get("algos");
+		var V = this.model.get("V");
+		_.each(this.algoViews, function(v) {
+			v.remove();
+		});
 		this.algoViews = {};
 		_.each(algos, function(algoName) {
 			console.log("algo: " + algoName);
@@ -219,7 +334,7 @@ app.GraphVizView = Backbone.View.extend({
 				graphModel: new app.GraphModel({V: V})
 			});
 		}, this);
-		this.addAlgoView = new app.AddAlgoView();
+
 	},
 
 	render: function() {
@@ -381,11 +496,20 @@ app.MainView = Backbone.View.extend({
 	initialize: function() {
 		this.presetsCollection = new app.DemosPresetsCollection();
 		this.settingsModel = this.presetsCollection.getDefault();
-		this.demosListView = new app.DemosListView({collection: this.presetsCollection});
+		this.demosListView = new app.DemosListView({
+			collection: this.presetsCollection,
+			model: this.settingsModel
+		});
+		this.listenTo(this.settingsModel, "change:current_demo", this._updateSettingsModel);
 		this.graphOptionsView = new app.GraphOptionsView({model: this.settingsModel});
 		this.explanationView = new app.ExplanationView({model: this.settingsModel});
 		this.graphVizView = new app.GraphVizView({model: this.settingsModel});
 	},
+
+	_updateSettingsModel: function() {
+		this.presetsCollection.populateSettingsModel(this.settingsModel);
+	},
+
 	render: function() {
 		this.$el.append(this.demosListView.render().$el)
 			.append(this.graphOptionsView.render().$el)

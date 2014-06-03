@@ -153,8 +153,8 @@ app.registerAlgorithm({
 app.registerAlgorithm({
 	id: "toposort",
 	title: "Relaxing edges in topological order",
-/* BEGIN ALGORITHM toposort */
 	code: function(graph) {
+/* BEGIN ALGORITHM toposort */
 	var	topoSort = function(graph, startId) {
 		var sorted = [];
 		var dfs = function(fromNode) {
@@ -208,6 +208,44 @@ app.registerAlgorithm({
 				console.log("recording step w/ path " + annotations[1].text);
 			}.bind(this));
 		}
+/* END ALGORITHM */
+	}
+});
+
+app.registerAlgorithm({
+	id: "dfs",
+	title: "DFS",
+	code: function(graph) {
+/* BEGIN ALGORITHM dfs */
+	var source = this.getSource();
+	this.addNodeClass(source.id, "source");
+	var edgeTo = {};
+	var curPath = [];
+	dfs = function(start) {
+		console.log("running DFS on " + start.id);
+		if (!start.marked) {
+			start.marked = true;
+			start.addStickyStatus("exploring");
+			start.addStatus("visiting");
+  			this.recordStep(graph, []);
+		} else {
+  			this.recordStep(graph, []);
+			console.log("vtx " + start.id + " already marked");
+			return;
+		}
+    for (var i = 0; i < start.adj.length; i++) {
+      	var edge = start.adj[i];
+		graph.addToPath(edge);
+		graph.tracePath(edge.target, {addStatus: "active"});
+    	dfs(edge.target);
+	}
+    start.removeStickyStatus("exploring");
+    start.addStickyStatus("finished");
+    this.recordStep(graph, []);
+  }.bind(this);
+	console.log("ABOUT TO RUN DFS");
+  _(graph.nodes).each(function(x) { x.marked = false; });
+  dfs(source);
 /* END ALGORITHM */
 	}
 });

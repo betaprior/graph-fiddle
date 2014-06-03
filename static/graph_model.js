@@ -188,6 +188,28 @@ app.GraphModel = Backbone.Model.extend({
 
 	E: function() { return _.size(this.graph.links); },
 
+	/**
+	 *   getGraphTypes
+	 *
+	 *   Retrieve the list of graph types this object provides, along with their
+	 *   titles and creation functions. This list is returned as an object keyed by graph type ID:
+	 *   {dijkstra: {title: "Dijkstra", make: [reference to makeWorstCaseDijkstra]}}
+	 *
+	 *   Options:
+	 *   - titleOnly: if true, return {id: title} objects only, e.g. ({bst: "BST", wd: "Worst Dijkstra"})
+	 */
+	getGraphTypes: function(options) {
+		options = options || {};
+		var graphTypes = {
+			worst_dijkstra: {title: "Worst Dijkstra DAG", make: _.bind(this.makeWorstCaseDijkstra, this)},
+			bst: {title: "Binary Search Tree", make: function() {}}
+		};
+		if (options.titleOnly) {
+			_.each(graphTypes, function(v, k) { graphTypes[k] = v.title; });
+		}
+		return graphTypes;
+	},
+
 	makeWorstCaseDijkstra: function(n) {
 		var graph = this.graph = this.makeGraph();
 		if (n < 2) { return; }
