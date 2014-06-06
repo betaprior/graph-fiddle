@@ -79,19 +79,37 @@ app.GraphView = Backbone.View.extend({
 		var svg = this.prepSvg(this.width, this.height);
 		var nodeValues = d3.values(graph.nodes);
 		var linkValues = d3.values(graph.links);
+		for (var ii = 0; ii < nodeValues.length; ii++) {
+			nodeValues[ii].index = nodeValues[ii].id;
+		}
 
 		var annotations = svg.append("g")
 				.attr("id", "annotations")
 				.attr("transform", "translate(10, 10)");
 
-		var cola = this.cola.d3adaptor()
+		// TODO: figure out how to make the graph constraints more general
+		var cola;
+		if (this.options.graph_type && this.options.graph_type === "bst") {
+			cola = this.cola.d3adaptor()
+				.linkDistance(70)
+				.handleDisconnected(true)
+				.size([this.width, this.height]);
+			cola.nodes(nodeValues)
+				.links(linkValues)
+				.flowLayout("y", 20)
+				.symmetricDiffLinkLengths(20)
+				.on("tick", tick)
+				.start(10,20,20);
+		} else {
+			cola = this.cola.d3adaptor()
 				.linkDistance(250)
 				.handleDisconnected(true)
 				.size([this.width, this.height]);
-		cola.nodes(nodeValues)
-			.links(linkValues)
-			.on("tick", tick)
-			.start(30);
+			cola.nodes(nodeValues)
+				.links(linkValues)
+				.on("tick", tick)
+				.start(30);
+		}
 
 		// bind the edges
 		var d3linksEnter = svg.append("svg:g").selectAll(".link")

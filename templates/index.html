@@ -28,6 +28,7 @@
     <script type=text/javascript src="{{url_for('static', filename='graph_simulation.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='algorithms.js') }}"></script>
     <!-- <script type=text/javascript src="{{url_for('static', filename='main.js') }}"></script> -->
+    <script type=text/javascript src="{{url_for('static', filename='editor.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='ui.js') }}"></script>
 
     <script type=text/javascript src="{{url_for('static', filename='lib/bootstrap-3.1.1/js/bootstrap.min.js') }}"></script>
@@ -79,6 +80,20 @@
         This is totally a hack to get the desired padding behavior for the algo-container class-->
       <div class="row" id="algo-view-container">
       </div>
+    </script>
+
+    <script id="editor-template" type="text/template">
+      <div id="edit-controls" style="display: none;">
+		<ul class="nav nav-tabs" id="editor-tabs">
+		  <li id="default_code"><a href="#" data-toggle="tab">Default</a></li>
+		  <li id="edited_code">
+            <a href="#" data-toggle="tab">
+              <button class="close close-tab" type="button" >×</button>Edited
+            </a>
+          </li>
+	    </ul>
+      </div>
+	  <div id="edit-area"></div>
     </script>
 
     <script id="algoview-template" type="text/template">

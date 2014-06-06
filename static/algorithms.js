@@ -20,7 +20,15 @@ function makeIndexedPQ() {
 	return pq;
 }
 
-
+/**
+ *   Graph Simulation View class extended to handle a particular algorithm example
+ *
+ *   Arguments:
+ *   - model: graph model
+ *   - graph_type: graph type
+ *   - animationModel
+ *   - algorithm: algorithm name
+ */
 app.AnimatedSimulationBase = app.GraphSimulationView.extend({
 	initialize: function() {
 		app.GraphSimulationView.prototype.initialize.apply(this, arguments);
@@ -51,6 +59,12 @@ app.AnimatedSimulationBase = app.GraphSimulationView.extend({
  *   registerAlgorithm
  *
  *   Insert an algorithm code snippet into the app's global `algorithms` object
+ *
+ *   The global `algorithms` object is keyed by the algorithm ID and has properties:
+ *   - title: algorithm title
+ *   - code: executable function that takes graph as a parameter and precomputes the visualization
+ *   TODO: refactor the algorithms data structures (i.e. merge this code with the algorithm model
+ *         in editor.js)
  *
  *   Arguments:
  *   -params: object with fields {id, title, code}

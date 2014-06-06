@@ -35,7 +35,7 @@ app.GraphModel = Backbone.Model.extend({
 		this.listenTo(this.masterModel, "change:V", function() {
 			this.set("V", this.masterModel.get("V"));
 		}.bind(this));
-		this.makeWorstCaseDijkstra(nVtxs);
+		// this.makeWorstCaseDijkstra(nVtxs);
 	},
 
 	/**
@@ -202,7 +202,7 @@ app.GraphModel = Backbone.Model.extend({
 		options = options || {};
 		var graphTypes = {
 			worst_dijkstra: {title: "Worst Dijkstra DAG", make: _.bind(this.makeWorstCaseDijkstra, this)},
-			bst: {title: "Binary Search Tree", make: function() {}}
+			bst: {title: "Binary Search Tree", make: _.bind(this.makeBST, this)}
 		};
 		if (options.titleOnly) {
 			_.each(graphTypes, function(v, k) { graphTypes[k] = v.title; });
@@ -210,7 +210,84 @@ app.GraphModel = Backbone.Model.extend({
 		return graphTypes;
 	},
 
-	makeWorstCaseDijkstra: function(n) {
+
+	makePresetGraph: function(graphOptions) {
+		if (!graphOptions.graph_type) {
+			throw new Error("Graph type must be provided");
+		}
+		var type = graphOptions.graph_type;
+		var ctor = this.getGraphTypes()[type].make;
+		if (ctor) {
+			ctor(graphOptions);
+		}
+	},
+
+	makeBST: function(params) {
+		var n = params.V;
+		console.log("making BST");
+		Math.seed = 6;
+		Math.seededRandom = function(max, min) {
+			max = max || 1;
+			min = min || 0;
+			Math.seed = (Math.seed * 9301 + 49297) % 233280;
+			var rnd = Math.seed / 233280;
+			return min + rnd * (max - min);
+		};
+		var root = {};
+		var max = 50;
+		var insert = function(node, val, nodeRef, branch) {
+			if (!node) {
+				node = nodeRef[branch] = {value: val};
+				return;
+			}
+			if (val <= node.value) {
+				insert(node.left, val, node, "left");
+			} else {
+				insert(node.right, val, node, "right");
+			}
+		};
+		root.value = Math.round(Math.seededRandom(max));
+		for (var i = 1; i < n; ++i) {
+			var value = Math.round(Math.seededRandom(max));
+			insert(root, value);
+		}
+		var node, link;
+		var curNodeId = 0;
+		// invariant: call on nodes that have been assigned an id and are in the graph
+		// but don't have their adj list set up yet
+		// node_ here is the tree node, node is the graph node
+		var insertNodes = function(node_) {
+			if (!node_) { return; }
+			var addElements = function(val) {
+				node = this.makeNode({id: curNodeId, value: val, name: String(curNodeId)});
+				graph.nodes[curNodeId] = node;
+				link = this.makeLink({source: graph.nodes[node_.id], target: node, id: curLinkId++});
+				graph.nodes[node_.id].adj.push(link);
+				graph.links[link.id] = link;
+			}.bind(this);
+			if (node_.left) {
+				curNodeId++;
+				node_.left.id = curNodeId;
+				addElements(node_.left.value);
+				insertNodes(node_.left);
+			}
+			if (node_.right) {
+				curNodeId++;
+				node_.right.id = curNodeId;
+				addElements(node_.right.value);
+				insertNodes(node_.right);
+			}
+		}.bind(this);
+		var graph = this.graph = this.makeGraph();
+		var curLinkId = 0;
+		var srcNode = this.makeNode({id: curNodeId, value: root.value, name: String(curNodeId)});
+		root.id = curNodeId;
+		graph.nodes[srcNode.id] = srcNode;
+		insertNodes(root);
+	},
+
+	makeWorstCaseDijkstra: function(params) {
+		var n = params.V;
 		var graph = this.graph = this.makeGraph();
 		if (n < 2) { return; }
 		var node, link;

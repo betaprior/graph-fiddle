@@ -14,6 +14,9 @@ var app = app || {}; // The Application
  *   (e.g. 'graph_selection' or 'algo_selection' vs 'selection').
  */
 app.UISettingsModel = Backbone.Model.extend({
+	getGraphOptions: function() {
+		return this.pick("V", "graph_type");
+	}
 });
 
 /**
@@ -65,7 +68,7 @@ app.DemosPresetsCollection = Backbone.Collection.extend({
 	makeBSTPresets: function(model) {
 		model.set({
 			title: "Binary Trees",
-			V: 16,
+			V: 12,
 			graph_type: "bst",
 			explanation_visibility: "collapsed",
 			algos: ["dfs"]
@@ -327,11 +330,14 @@ app.GraphVizView = Backbone.View.extend({
 			v.remove();
 		});
 		this.algoViews = {};
-		_.each(algos, function(algoName) {
-			console.log("algo: " + algoName);
-			this.algoViews[algoName] = new app.AlgoView({
-				algorithm: algoName,
-				graphModel: new app.GraphModel({V: V})
+		_.each(algos, function(algoId) {
+			var graphModel = new app.GraphModel({V: V});
+			graphModel.makePresetGraph(this.model.getGraphOptions());
+			this.algoViews[algoId] = new app.AlgoView({
+				algorithm: algoId,
+				graph_type: this.model.get("graph_type"),
+				model: new app.AlgoModel({algo_id: algoId, title: app.algorithms[algoId].title}),
+				graphModel: graphModel
 			});
 		}, this);
 
@@ -377,6 +383,10 @@ app.AddAlgoView = Backbone.View.extend({
  *
  *   Main view for an individual algorithm visualization; contains graph canvas
  *   and animation controls.  Keeps track of the animation state model.
+ *
+ *   Arguments:
+ *   - graph_type: graph type that's passed on to the graph renderer
+ *   - algorithm: algorithm ID
  */
 app.AlgoView = Backbone.View.extend({
 	initialize: function(options) {
@@ -388,8 +398,42 @@ app.AlgoView = Backbone.View.extend({
 		this.graphView = new app.GraphAlgorithmView({
 			animationModel: this.stateModel,
 			model: this.graphModel,
+			graph_type: options.graph_type,
 			algorithm: options.algorithm
 		});
+		this._setupEditor();
+	},
+
+	events: {
+		"click .algo-container .edit-link a": "launchEditor"
+	},
+
+
+	_setupEditor: function() {
+		this.listenTo(this.model, "code:saved", function(model, value, options) {
+			var cp = this.model.get("code_ptr");
+			console.log("Loading algorithm from editor buffer " + cp);
+			var code = this.model.get(cp);
+			if (code) {
+				eval(code);
+				console.log("Re-rendering the view");
+				this.graphView.render();
+			}
+		}.bind(this));
+	},
+
+	launchEditor: function() {
+		var _listenTo = this.listenTo;
+		console.log("Edit clicked");
+		var view = new app.EditorView({model: this.model});
+		var modal = new Backbone.BootstrapModal({
+			content: view,
+			title: "Edit this algorithm!",
+			animate: false
+		});
+		_listenTo(modal, "hidden", function() { console.log("hidden callback"); });
+		modal.open();
+		modal.$el.addClass("modal-wide");
 	},
 
 	render: function() {
@@ -410,12 +454,13 @@ app.AlgoView = Backbone.View.extend({
  *   Arguments:
  *   - animationModel: animation state model
  *   - model: graph model
- *   - algorithm: algorith name
+ *   - algorithm: algorith ID
+ *   - graph_type: graph type that's passed on to the graph renderer
  */
 app.GraphAlgorithmView = app.AnimatedSimulationBase.extend({
 	initialize: function(options) {
 		// retrieve the algorithm code from the global app.algorithms object and assign it
-		// as a class method
+		// as an instance method
 		this.recordAnimatedAlgorithm = app.algorithms[options.algorithm].code.bind(this);
 		app.AnimatedSimulationBase.prototype.initialize.apply(this, arguments);
 	}

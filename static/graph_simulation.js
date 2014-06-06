@@ -4,6 +4,9 @@ var app = app || {};
  *   Graph simulation class
  *
  *   Contains methods for creating and rendering graph traversal simulation animations.
+ *
+ *   Arguments:
+ *   - animationModel
  */
 app.GraphSimulationView = app.GraphView.extend({
 
