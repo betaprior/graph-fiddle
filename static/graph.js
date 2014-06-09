@@ -13,7 +13,7 @@ app.GraphView = Backbone.View.extend({
 	 *   required:
 	 *   - model: GraphModel for this graph
 	 *   optional:
-	 *   - nodeLabels: whether to show node labels
+	 *   - showLabels: whether to show node labels
 	 *   - loadData
 	 */
 	initialize: function(options) {
@@ -22,9 +22,9 @@ app.GraphView = Backbone.View.extend({
 		if (options.loadData) {
 			this.graphPromise = this.getData(options.loadData);
 		}
-		this.options = _.defaults(options, {nodeLabels: true});
-		this.width = 400;
-		this.height = 400;
+		this.options = _.defaults(options, {showLabels: false, showWeights: true});
+		this.width = 420;
+		this.height = 420;
 		this.nodeR = 20;
 		this.cola = cola;
 	},
@@ -91,13 +91,15 @@ app.GraphView = Backbone.View.extend({
 		var cola;
 		if (this.options.graph_type && this.options.graph_type === "bst") {
 			cola = this.cola.d3adaptor()
-				.linkDistance(70)
+				.linkDistance(60)
 				.handleDisconnected(true)
 				.size([this.width, this.height]);
 			cola.nodes(nodeValues)
 				.links(linkValues)
-				.flowLayout("y", 20)
-				.symmetricDiffLinkLengths(20)
+				// .defaultNodeSize(2 * this.nodeR)
+				// .avoidOverlaps(true)
+				.flowLayout("y", 90)
+				.symmetricDiffLinkLengths(16)
 				.on("tick", tick)
 				.start(10,20,20);
 		} else {
@@ -137,8 +139,10 @@ app.GraphView = Backbone.View.extend({
 					return "translate(" + x + "," + y + ")";
 				});
 
-		pathLabels.append("text")
-			.text(function(d) { return d.weight; });
+		if (this.options.showWeights) {
+			pathLabels.append("text")
+				.text(function(d) { return d.weight; });
+		}
 
 		// bind the nodes
 		var node = svg.selectAll(".node")
@@ -161,7 +165,7 @@ app.GraphView = Backbone.View.extend({
 			// .text(function(d) { return d.dist; });
 
 		// add labels
-		if (this.options.nodeLabels) {
+		if (this.options.showLabels) {
 			node.append("text")
 				.attr("x", 22)
 				.attr("dy", ".35em")

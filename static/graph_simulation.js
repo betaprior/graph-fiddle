@@ -11,7 +11,7 @@ var app = app || {};
 app.GraphSimulationView = app.GraphView.extend({
 
 	initialize: function(options) {
-		options = options || {};
+		this.options = options = options || {};
 		this.setSource({id: options.sourceId || 0});
 		this.setTarget({id: options.targetId || 1});
 		this.timeout = options.timeout || 1000;
@@ -37,7 +37,9 @@ app.GraphSimulationView = app.GraphView.extend({
 			if (this.animationModel.get("status") === "playing") {
 				var ps = this.animationModel.previous("status");
 				if (ps === "new" || ps === "finished") {
-					this.initializeDistances(this.model.graph);
+					if (this.model.get("weighted") && this.options.showInitialDistances) {
+						this.initializeDistances(this.model.graph);
+					}
 					this.next_step = 0;
 				}
 				this.runActions(this.next_step);

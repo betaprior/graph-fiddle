@@ -24,6 +24,7 @@ app.GraphModel = Backbone.Model.extend({
 	 *   Graph model initializer
 	 *   options:
 	 *   - V: number of vertices
+	 *   - weighted {Boolean}: true for weighted graphs
 	 */
 	initialize: function(options) {
 		options = options || {};
@@ -87,8 +88,12 @@ app.GraphModel = Backbone.Model.extend({
 			return _.defaults(h, this);
 		}
 	},
+	isWeighted: function() {
+		return !!this.get("weighted");
+	},
 	makeGraph: function() {
 		var g = Object.create(this.graphPrototype);
+		g.isWeighted = function() { return this.isWeighted(); }.bind(this);
 		g.links = {};
 		g.nodes = {};
 		g.edgeTo = {};
@@ -224,6 +229,7 @@ app.GraphModel = Backbone.Model.extend({
 
 	makeBST: function(params) {
 		var n = params.V;
+		this.set("weighted", false);
 		console.log("making BST");
 		Math.seed = 6;
 		Math.seededRandom = function(max, min) {
@@ -261,7 +267,7 @@ app.GraphModel = Backbone.Model.extend({
 			var addElements = function(val) {
 				node = this.makeNode({id: curNodeId, value: val, name: String(curNodeId)});
 				graph.nodes[curNodeId] = node;
-				link = this.makeLink({source: graph.nodes[node_.id], target: node, id: curLinkId++});
+				link = this.makeLink({source: graph.nodes[node_.id], weight: 1, target: node, id: curLinkId++});
 				graph.nodes[node_.id].adj.push(link);
 				graph.links[link.id] = link;
 			}.bind(this);
@@ -288,6 +294,7 @@ app.GraphModel = Backbone.Model.extend({
 
 	makeWorstCaseDijkstra: function(params) {
 		var n = params.V;
+		this.set("weighted", true);
 		var graph = this.graph = this.makeGraph();
 		if (n < 2) { return; }
 		var node, link;

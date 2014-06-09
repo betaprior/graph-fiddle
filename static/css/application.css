@@ -186,6 +186,10 @@ form.global-controls::after {
 	font-size: 18px;
 }
 
+.graph-options-label {
+    padding-bottom: 5px;
+}
+
 /* main layout panels */
 .labeled-panel {
     position: relative;

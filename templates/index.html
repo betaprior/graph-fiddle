@@ -142,7 +142,9 @@
       <div class="container row">
         <div class="panel panel-default labeled-panel" data-content="Graph options">
           <div class="panel-body">
-            <div id="type-selector">
+            <div id="type-selector" class="col-md-2">
+            <div id="type-selector-label" class="graph-options-label">Graph type:</div>
+            <div id="type-selector-control">
               <div class="btn-group">
                 <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
                   <span class="my-label"></span>
@@ -151,8 +153,12 @@
                 <ul class="dropdown-menu graph-choices">
                 </ul>
               </div>
+             </div>
             </div>
-            <div id="vertex-spinner"></div>
+           <div id="vertex-spinner" class="col-md-2">
+             <div id="vertex-spinner-label" class="graph-options-label">Vertices:</div>
+             <div id="vertex-spinner-control"></div>
+           </div>
           </div>
         </div>
       </div>

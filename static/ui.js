@@ -60,6 +60,8 @@ app.DemosPresetsCollection = Backbone.Collection.extend({
 			V: 6,
 			graph_type: "worst_dijkstra",
 			explanation_visibility: "full",
+			explanation_text: "When we run Dijkstra's algorithm on a graph with negative-weighted edges, the greedy heuristic by which the algorithm picks the next edge to explore is no longer guaranteed to be optimal. Indeed, we can construct a graph that makes the algorithm perform an exponential number of steps!",
+			graph_options: { showLabels: false, showWeights: true, showInitialDistances: true },
 			algos: ["dijkstra",
 					"bellman-ford",
 					"toposort"]
@@ -68,9 +70,11 @@ app.DemosPresetsCollection = Backbone.Collection.extend({
 	makeBSTPresets: function(model) {
 		model.set({
 			title: "Binary Trees",
-			V: 12,
+			V: 10,
 			graph_type: "bst",
-			explanation_visibility: "collapsed",
+			// explanation_visibility: "collapsed",
+			explanation_visibility: "hidden",
+			graph_options: { showLabels: true, showWeights: false },
 			algos: ["dfs"]
 		});
 	},
@@ -79,7 +83,7 @@ app.DemosPresetsCollection = Backbone.Collection.extend({
 			title: "Topological Sort",
 			V: 6,
 			graph_type: "worst_dijkstra",
-			graph_options: { showLabels: true, showWeighs: false },
+			graph_options: { showLabels: true, showWeights: false },
 			explanation_visibility: "hidden",
 			algos: []
 		});
@@ -230,7 +234,11 @@ app.ExplanationView = Backbone.View.extend({
 		} else {
 			this.$el.show();
 		}
-		this.$(".panel-body").text("I am a " + this.model.get("explanation_visibility") + " explanation!");
+		if (this.model.has("explanation_text")) {
+			this.$(".panel-body").html(this.model.get("explanation_text"));
+		} else {
+			this.$(".panel-body").text("I am a " + this.model.get("explanation_visibility") + " explanation!");
+		}
 		return this;
 	}
 });
@@ -270,7 +278,7 @@ app.GraphOptionsView = Backbone.View.extend({
 
 	render: function() {
 		this.$el.html(this.template);
-		var $spinner = this.$("#vertex-spinner");
+		var $spinner = this.$("#vertex-spinner-control");
 		this.spinnerView.setElement($spinner).render();
 		this._populateGraphChoices();
 		this._updateButtonLabel();
@@ -337,7 +345,8 @@ app.GraphVizView = Backbone.View.extend({
 				algorithm: algoId,
 				graph_type: this.model.get("graph_type"),
 				model: new app.AlgoModel({algo_id: algoId, title: app.algorithms[algoId].title}),
-				graphModel: graphModel
+				graphModel: graphModel,
+				graphOptions: this.model.get("graph_options")
 			});
 		}, this);
 
@@ -395,12 +404,12 @@ app.AlgoView = Backbone.View.extend({
 		this.stateModel = new app.AnimationStateModel();
 		this.controlsView = new app.AnimationControlsView({model: this.stateModel});
 		this.graphModel = options.graphModel || new app.GraphModel({V: 6});
-		this.graphView = new app.GraphAlgorithmView({
+		this.graphView = new app.GraphAlgorithmView(_.extend({
 			animationModel: this.stateModel,
 			model: this.graphModel,
 			graph_type: options.graph_type,
 			algorithm: options.algorithm
-		});
+		}, options.graphOptions));
 		this._setupEditor();
 	},
 
