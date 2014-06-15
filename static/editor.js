@@ -87,10 +87,10 @@ app.AlgoModel = Backbone.Model.extend({
 		options = options || {};
 		this.animationControlsModel = options.animationControlsModel;
 		this.graphModel = options.graphModel;
-		if (!_.has(attributes, "algo_id")) {
-			throw new Error("Attributes of algo model must include 'algo_id'");
+		// TODO: less hacky way of handling user-defined vs preset model
+		if (!_.has(attributes, "algo_id") || !attributes.algo_id) {
+			this.set("algo_id", "user-defined");
 		}
-		// TODO: remove this temporary hack
 		if (this.get("algo_id") === "user-defined") {
 			this.set("user_defined", true);
 		}

@@ -2,9 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <!-- <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/jqueryui-1.8.24/themes/smoothness/jquery-ui.css') }}"/> -->
-    <!-- <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/jqueryui-1.8.24/themes/smoothness/jquery.ui.theme.css') }}"/> -->
-    <!-- <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/ui.spinner.css') }}"/> -->
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='css/bootstrap.min.css') }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/codemirror-4.1/lib/codemirror.css') }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{{url_for('static', filename='lib/codemirror-4.1/theme/base16-light.css') }}"/>
@@ -15,11 +12,9 @@
       $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
     </script>
     <script type=text/javascript src="{{url_for('static', filename='lib/jquery.min.js') }}"></script>
-    <!-- <script type=text/javascript src="{{url_for('static', filename='lib/jqueryui-1.8.24/ui/minified/jquery-ui.min.js') }}"></script> -->
-    <!-- <script type=text/javascript src="{{url_for('static', filename='lib/jquery-ui-1.10.4.min.js') }}"></script> -->
-    <!-- <script type=text/javascript src="{{url_for('static', filename='lib/ui.spinner.js') }}"></script> -->
     <script type=text/javascript src="{{url_for('static', filename='lib/underscore-min.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='lib/backbone-min.js') }}"></script>
+    <!-- <script type=text/javascript src="{{url_for('static', filename='lib/backbone.js') }}"></script> -->
     <script type=text/javascript src="{{url_for('static', filename='lib/d3.v3.min.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='lib/WebCola/src/d3adaptor.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='lib/WebCola/cola.v3.min.js') }}"></script>
@@ -27,7 +22,6 @@
     <script type=text/javascript src="{{url_for('static', filename='graph.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='graph_simulation.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='algorithms.js') }}"></script>
-    <!-- <script type=text/javascript src="{{url_for('static', filename='main.js') }}"></script> -->
     <script type=text/javascript src="{{url_for('static', filename='editor.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='ui.js') }}"></script>
 
@@ -35,6 +29,13 @@
     <script type=text/javascript src="{{url_for('static', filename='lib/bootstrap-modal/src/backbone.bootstrap-modal.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='lib/codemirror-4.1/lib/codemirror.js') }}"></script>
     <script type=text/javascript src="{{url_for('static', filename='lib/codemirror-4.1/mode/javascript/javascript.js') }}"></script>
+
+    <script id="error-template" type="text/template">
+      <div class="alert alert-warning alert-dismissable">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+        <strong>Error: </strong><span class="error-message"></span>
+      </div>
+    </script>
 
     <script id="modal-template" type="text/template">
       <div class="modal">
@@ -76,8 +77,8 @@
     </script>
 
     <script id="graphviz-template" type="text/template">
-      <!-- Note that the following div has only row class and not a container class.
-        This is totally a hack to get the desired padding behavior for the algo-container class-->
+      <!-- The following div has only a row class and not a container class.
+        This is kind of a hack to make Bootstrap produce desired padding for the algo-container class-->
       <div class="row" id="algo-view-container">
       </div>
     </script>
@@ -99,6 +100,11 @@
     <script id="algoview-template" type="text/template">
       <div class="col-md-6">
         <div class="algo-container panel panel-default labeled-panel">
+          <div class="algo-label-control">
+            <div class="dropdown algo-selector">
+              <a data-toggle="dropdown" data-target="#"><span class="algo-label"></span><span class="caret"></span></a>
+            </div>
+          </div>
           <div class="edit-link" style="position: absolute; top: 5px; left: 400px; "> <a href="#">Edit Algorithm</a> </div>
           <div class="view-wrapper">
             <div class="animation-controls-container"></div>

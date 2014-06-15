@@ -12,6 +12,7 @@ app.GraphView = Backbone.View.extend({
 	 *   Initializer/constructor options:
 	 *   required:
 	 *   - model: GraphModel for this graph
+	 *   - graph_type: used for applying different render options to different graphs
 	 *   optional:
 	 *   - showLabels: whether to show node labels
 	 *   - loadData

@@ -7,6 +7,7 @@ var app = app || {};
  *
  *   Arguments:
  *   - animationModel
+ *   - graph_type: used for applying different render options to different graphs
  */
 app.GraphSimulationView = app.GraphView.extend({
 

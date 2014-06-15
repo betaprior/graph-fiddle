@@ -27,7 +27,6 @@ function makeIndexedPQ() {
  *   - model: graph model
  *   - graph_type: graph type
  *   - animationModel
- *   - algorithm: algorithm name
  */
 app.AnimatedSimulationBase = app.GraphSimulationView.extend({
 	initialize: function() {

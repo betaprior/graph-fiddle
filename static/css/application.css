@@ -206,7 +206,9 @@ form.global-controls::after {
     padding: 40px 0px 14px;
 }
 
-.labeled-panel::after {
+/* .labeled-panel::after { */
+.algo-label-control,
+.labeled-panel:not(.algo-container)::after {
     position: absolute;
     top: -1px;
     left: -1px;
@@ -219,9 +221,9 @@ form.global-controls::after {
     -webkit-border-radius: 4px 0 4px 0;
     -moz-border-radius: 4px 0 4px 0;
     border-radius: 4px 0 4px 0;
-    /* content: "test" */
     content: attr(data-content);
 }
+
 
 .add-algo-placeholder .fa-plus {
     font-size: 50px;

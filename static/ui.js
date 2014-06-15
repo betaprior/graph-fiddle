@@ -186,6 +186,23 @@ app.DemosListView = Backbone.View.extend({
 		this.listenTo(this.model, "change:current_demo", this._updateDemoButton);
 	},
 
+	events: {
+		"click .preset-item": "_setDemo"
+	},
+
+	/**
+	 *   Click handler to set current demo in the UISettingsModel. Click target must be
+	 *   classed as `preset-item` and have an `id` attribute with the demo ID.
+	 */
+	_setDemo: function(e) {
+		var target = $(e.target).closest(".preset-item");
+		if (!target.attr("id")) {
+			throw new Error("Click target must have id");
+		}
+		e.preventDefault();
+		this.model.set("current_demo", target.attr("id"));
+	},
+
 	_updateDemoButton: function() {
 		var $presetsList = this.$("ul.presets-list");
 		this.$("li", $presetsList).removeClass("active");
@@ -193,7 +210,7 @@ app.DemosListView = Backbone.View.extend({
 	},
 
 	_makeItemElement: function(model) {
-		return $("<li id='" + model.get("current_demo") + "'><a href='#'>" +
+		return $("<li class='preset-item' id='" + model.get("current_demo") + "'><a href='#'>" +
 				 model.get("title") + "</a></li>");
 	},
 
@@ -201,12 +218,8 @@ app.DemosListView = Backbone.View.extend({
 		this.$el.html(this.template);
 		this.$(".labeled-panel").attr("data-content", this.label);
 		var $presetsList = this.$("ul.presets-list");
-		var setDemo = function(x) { this.model.set("current_demo", x); }.bind(this);
 		this.collection.each(function(presetModel) {
 			var $presetItem = this._makeItemElement(presetModel);
-			$presetItem.click(function(e) {
-				setDemo($(this).attr("id"));
-			});
 			$presetsList.append($presetItem);
 		}.bind(this));
 		this._updateDemoButton();
@@ -314,6 +327,8 @@ app.GraphOptionsView = Backbone.View.extend({
  *
  *   Container view for demo graphs and their associated controls
  *
+ *   Instantiates new `AlgoView`s and handles the add/remove graph events.
+ *
  *   Arguments:
  *   - model: UI settings model
  */
@@ -331,32 +346,46 @@ app.GraphVizView = Backbone.View.extend({
 		});
 	},
 
+	events: {
+		"click .add-algo-placeholder #add-algo-clickable": "addAlgo"
+	},
+
+	addAlgo: function(e) {
+		e.preventDefault();
+		this._addAlgoView();
+		this.render();
+	},
+
 	_setupAlgoViews: function() {
 		var algos = this.model.get("algos");
-		var V = this.model.get("V");
 		_.each(this.algoViews, function(v) {
 			v.remove();
 		});
-		this.algoViews = {};
+		this.algoViews = [];
 		_.each(algos, function(algoId) {
-			var graphModel = new app.GraphModel({V: V});
-			graphModel.makePresetGraph(this.model.getGraphOptions());
-			this.algoViews[algoId] = new app.AlgoView({
-				algorithm: algoId,
-				graph_type: this.model.get("graph_type"),
-				model: new app.AlgoModel({algo_id: algoId, title: app.algorithms[algoId].title}),
-				graphModel: graphModel,
-				graphOptions: this.model.get("graph_options")
-			});
+			this._addAlgoView(algoId);
 		}, this);
-
 	},
 
-	render: function() {
-		this.$el.html(this.template);
-		this._renderGraphs();
-		this._renderAddPlaceholder();
-		return this;
+	_addAlgoView: function(algoId) {
+		var algoModelParams = algoId ? {algo_id: algoId, title: app.algorithms[algoId].title} : {};
+		var algoModel = new app.AlgoModel(algoModelParams);
+		var graphModel = new app.GraphModel({V: this.model.get("V")});
+		var graphOptions = this.model.getGraphOptions();
+		if (!parseInt(graphOptions.V, 10) || !graphOptions.graph_type) {
+			Backbone.trigger("error", "Graph type and vertex # must be provided");
+			return;
+		}
+		graphModel.makePresetGraph(graphOptions);
+		this.algoViews.push(
+			new app.AlgoView({
+				algorithm: algoId,
+				graph_type: this.model.get("graph_type"),
+				model: algoModel,
+				graphModel: graphModel,
+				graphOptions: this.model.get("graph_options")
+			})
+		);
 	},
 
 	_renderGraphs: function() {
@@ -367,6 +396,13 @@ app.GraphVizView = Backbone.View.extend({
 
 	_renderAddPlaceholder: function() {
 		this.$("#algo-view-container").append(this.addAlgoView.render().$el);
+	},
+
+	render: function() {
+		this.$el.html(this.template);
+		this._renderGraphs();
+		this._renderAddPlaceholder();
+		return this;
 	}
 });
 
@@ -394,8 +430,10 @@ app.AddAlgoView = Backbone.View.extend({
  *   and animation controls.  Keeps track of the animation state model.
  *
  *   Arguments:
+ *   - model: AlgoModel to store and run the code
  *   - graph_type: graph type that's passed on to the graph renderer
  *   - algorithm: algorithm ID
+ *   - graphOptions
  */
 app.AlgoView = Backbone.View.extend({
 	initialize: function(options) {
@@ -403,6 +441,9 @@ app.AlgoView = Backbone.View.extend({
 		this.template = _.template($("#algoview-template").html());
 		this.stateModel = new app.AnimationStateModel();
 		this.controlsView = new app.AnimationControlsView({model: this.stateModel});
+		if (!options.algorithm) {
+			this._disablePlayControls();
+		}
 		this.graphModel = options.graphModel || new app.GraphModel({V: 6});
 		this.graphView = new app.GraphAlgorithmView(_.extend({
 			animationModel: this.stateModel,
@@ -414,7 +455,8 @@ app.AlgoView = Backbone.View.extend({
 	},
 
 	events: {
-		"click .algo-container .edit-link a": "launchEditor"
+		"click .algo-container .edit-link a": "launchEditor",
+		"click .algo-selector .algo-menuitem a": "_switchAlgorithm"
 	},
 
 
@@ -431,6 +473,46 @@ app.AlgoView = Backbone.View.extend({
 		}.bind(this));
 	},
 
+	/**
+	 *   Algo selector menu callback; the click target must have id attribute that stores
+	 *   the algorithm ID.
+	 */
+	_switchAlgorithm: function(e) {
+		var target = $(e.target).closest(".algo-menuitem");
+		var targetId = target.attr("id");
+		if (!targetId) {
+			throw new Error("Click target must have id");
+		}
+		e.preventDefault();
+		this._reinitPlayControls(); // in case controls were disabled for another algo
+		this._setAlgoTitle(targetId);
+		this.model = new app.AlgoModel({algo_id: targetId, title: app.algorithms[targetId].title});
+		this.graphView.setAlgorithm(targetId);
+		this.graphView.render();
+	},
+
+	_disablePlayControls: function() {
+		this.stateModel.set("disabled", true);
+	},
+
+	_reinitPlayControls: function() {
+		this.stateModel.set("disabled", false);
+	},
+
+	_makeAlgoMenu: function() {
+		var dropdownId = "algoDropdown";
+		var $ul = $('<ul class="dropdown-menu" role="menu" aria-labelledby="' + dropdownId + '"></ul>');
+		_(app.algorithms).each(function(v, algoId) {
+			var $li = $('<li role="presentation" class="algo-menuitem" id="' +
+						algoId +
+						'"><a role="menuitem" tabindex="-1" href="#">' +
+						v.title + '</a></li>');
+			$ul.append($li);
+		});
+		this.$(".labeled-panel .algo-label-control a").attr("id", dropdownId);
+		this.$(".labeled-panel .algo-label-control a").after($ul);
+	},
+
 	launchEditor: function() {
 		var _listenTo = this.listenTo;
 		console.log("Edit clicked");
@@ -445,9 +527,18 @@ app.AlgoView = Backbone.View.extend({
 		modal.$el.addClass("modal-wide");
 	},
 
+	_setAlgoTitle: function(algoId) {
+		var text = algoId ? app.algorithms[algoId].title : "Choose algorithm";
+		this.$(".labeled-panel .algo-label-control a .algo-label").text(text);
+	},
+
 	render: function() {
 		this.$el.html(this.template);
-		this.$(".labeled-panel").attr("data-content", app.algorithms[this.options.algorithm].title);
+		this.delegateEvents(); // parent view uses append() on render, so need to re-delegate here
+
+		this._makeAlgoMenu();
+		this._setAlgoTitle(this.options.algorithm);
+
 		this.controlsView.setElement(this.$(".animation-controls-container")).render();
 		this.graphView.setElement(this.$(".graph-container")).render();
 		return this;
@@ -468,10 +559,18 @@ app.AlgoView = Backbone.View.extend({
  */
 app.GraphAlgorithmView = app.AnimatedSimulationBase.extend({
 	initialize: function(options) {
-		// retrieve the algorithm code from the global app.algorithms object and assign it
-		// as an instance method
-		this.recordAnimatedAlgorithm = app.algorithms[options.algorithm].code.bind(this);
+		if (options.algorithm) {
+			this.setAlgorithm(options.algorithm);
+		}
 		app.AnimatedSimulationBase.prototype.initialize.apply(this, arguments);
+	},
+
+	/**
+	 * 	 Retrieve the algorithm code from the global app.algorithms object and assign it
+	 *   as an instance method
+	 */
+	setAlgorithm: function(algoId) {
+		this.recordAnimatedAlgorithm = app.algorithms[algoId].code.bind(this);
 	}
 });
 
@@ -483,7 +582,8 @@ app.GraphAlgorithmView = app.AnimatedSimulationBase.extend({
 app.AnimationStateModel = Backbone.Model.extend({
 	defaults: {
 		status: "new",
-		req_steps: 0
+		req_steps: 0,
+		disabled: false
 	}
 });
 
@@ -518,17 +618,21 @@ app.AnimationControlsView = Backbone.View.extend({
 		this.$("span.fa").removeClass("fa-play fa-pause");
 		this.$("#play span.fa").addClass('fa-' + (this.isPlaying() ? 'pause' : 'play'));
 		this.$("span.mylabel").text(this.isPlaying() ? " Pause" : " Run");
+		return this;
 	},
 
 	events: {
 		'click a#play': function() {
-			this.model.set("status", this.isPlaying() ? "paused" : "playing");
+			if (!this.model.get("disabled"))
+				this.model.set("status", this.isPlaying() ? "paused" : "playing");
 		},
 		'click a#step-fwd': function() {
-			this.model.set("req_steps", 1);
+			if (!this.model.get("disabled"))
+				this.model.set("req_steps", 1);
 		},
 		'click a#step-back': function() {
-			this.model.set("req_steps", -1);
+			if (!this.model.get("disabled"))
+				this.model.set("req_steps", -1);
 		}
 	},
 
@@ -555,6 +659,7 @@ app.MainView = Backbone.View.extend({
 			model: this.settingsModel
 		});
 		this.listenTo(this.settingsModel, "change:current_demo", this._updateSettingsModel);
+		this.listenTo(Backbone, "error", this.showError);
 		this.graphOptionsView = new app.GraphOptionsView({model: this.settingsModel});
 		this.explanationView = new app.ExplanationView({model: this.settingsModel});
 		this.graphVizView = new app.GraphVizView({model: this.settingsModel});
@@ -562,6 +667,16 @@ app.MainView = Backbone.View.extend({
 
 	_updateSettingsModel: function() {
 		this.presetsCollection.populateSettingsModel(this.settingsModel);
+	},
+
+	showError: function(e) {
+		if (_.some(this.$(".error-message").map(function() {
+			return $(this).text() === e;
+		}))) { return; }
+		var errorHtml = $("#error-template").html();
+		var $error = $(errorHtml);
+		$error.find(".error-message").text(e);
+		this.$el.prepend($error);
 	},
 
 	render: function() {
