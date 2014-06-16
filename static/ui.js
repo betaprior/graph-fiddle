@@ -447,6 +447,7 @@ app.AlgoView = Backbone.View.extend({
 		this.graphModel = options.graphModel || new app.GraphModel({V: 6});
 		this.graphView = new app.GraphAlgorithmView(_.extend({
 			animationModel: this.stateModel,
+			algoModel: this.model,
 			model: this.graphModel,
 			graph_type: options.graph_type,
 			algorithm: options.algorithm
@@ -466,7 +467,8 @@ app.AlgoView = Backbone.View.extend({
 			console.log("Loading algorithm from editor buffer " + cp);
 			var code = this.model.get(cp);
 			if (code) {
-				eval(code);
+				this.graphView.setAlgorithm(code);
+				this._reinitPlayControls();
 				console.log("Re-rendering the view");
 				this.graphView.render();
 			}
@@ -487,7 +489,7 @@ app.AlgoView = Backbone.View.extend({
 		this._reinitPlayControls(); // in case controls were disabled for another algo
 		this._setAlgoTitle(targetId);
 		this.model = new app.AlgoModel({algo_id: targetId, title: app.algorithms[targetId].title});
-		this.graphView.setAlgorithm(targetId);
+		this.graphView.setAlgorithmFromId(targetId);
 		this.graphView.render();
 	},
 
@@ -537,7 +539,7 @@ app.AlgoView = Backbone.View.extend({
 		this.delegateEvents(); // parent view uses append() on render, so need to re-delegate here
 
 		this._makeAlgoMenu();
-		this._setAlgoTitle(this.options.algorithm);
+		this._setAlgoTitle(this.graphView.algoId);
 
 		this.controlsView.setElement(this.$(".animation-controls-container")).render();
 		this.graphView.setElement(this.$(".graph-container")).render();
@@ -554,13 +556,16 @@ app.AlgoView = Backbone.View.extend({
  *   Arguments:
  *   - animationModel: animation state model
  *   - model: graph model
+ *   - algoModel: algorithm model
  *   - algorithm: algorith ID
  *   - graph_type: graph type that's passed on to the graph renderer
  */
 app.GraphAlgorithmView = app.AnimatedSimulationBase.extend({
 	initialize: function(options) {
+		this.algoModel = options.algoModel;
+		this.algoId = options.algorithm;
 		if (options.algorithm) {
-			this.setAlgorithm(options.algorithm);
+			this.setAlgorithmFromId(options.algorithm);
 		}
 		app.AnimatedSimulationBase.prototype.initialize.apply(this, arguments);
 	},
@@ -569,9 +574,22 @@ app.GraphAlgorithmView = app.AnimatedSimulationBase.extend({
 	 * 	 Retrieve the algorithm code from the global app.algorithms object and assign it
 	 *   as an instance method
 	 */
-	setAlgorithm: function(algoId) {
-		this.recordAnimatedAlgorithm = app.algorithms[algoId].code.bind(this);
+	setAlgorithmFromId: function(algoId) {
+		var code;
+		if (_.has(app.algorithms, algoId)) {
+			code = app.algorithms[algoId].code;
+		}
+		if (typeof code !== "function") {
+			throw new Error("Did not find a valid function object for the algorithm");
+		}
+		this.algoId = algoId;
+		this.recordAnimatedAlgorithm = this.algoModel.wrapCode(code, this);
+	},
+	// TODO: generate algoId`s for the user-defined algorithms
+	setAlgorithm: function(code) {
+		this.recordAnimatedAlgorithm = this.algoModel.wrapCode(code, this);
 	}
+
 });
 
 /**

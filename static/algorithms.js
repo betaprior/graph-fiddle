@@ -76,21 +76,21 @@ app.registerAlgorithm = function(params) {
 	app.algorithms[params.id] = {title: params.title, code: params.code};
 };
 
+
 app.registerAlgorithm({
 	id: "dijkstra",
 	title: "Dijkstra's algorithm",
-	code: function(graph) {
-/* BEGIN ALGORITHM dijkstra */
-		var source = this.getSource();
-		var target = this.getTarget();
-		this.initializeDistances(graph, source.id);
-		this.addNodeClass(source.id, "source");
-		this.addNodeClass(target.id, "target");
+	code: function() {
+		var source = getSource();
+		var target = getTarget();
+		initializeDistances(graph, source.id);
+		addNodeClass(source.id, "source");
+		addNodeClass(target.id, "target");
 
 		var edgeTo = {};
 		var curDist = graph.nodes[target.id].dist;
-		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
-		this.initializeAnnotations(annotations);
+		var annotations = [makeStepAnnotation(null, {text: ""}), makeShortestPathAnnotation(curDist)];
+		initializeAnnotations(annotations);
 		var pq = makeIndexedPQ();
 		var node = graph.nodes[source.id];
 		node.pqHandle = pq.push(node, node.dist);
@@ -102,10 +102,10 @@ app.registerAlgorithm({
 				var edge = curNode.adj[i];
 				var newDist = edge.target.dist;
 				annotations = [];
-				annotations.push(this.makeStepAnnotation(edge));
-				if (this.isTense(edge)) {
-					newDist = this.relax(edge);
-					this.addToPath(edge);
+				annotations.push(makeStepAnnotation(edge));
+				if (isTense(edge)) {
+					newDist = relax(edge);
+					addToPath(edge);
 					if (edge.target.id === target.id) {
 						curDist = newDist;
 					}
@@ -115,13 +115,12 @@ app.registerAlgorithm({
 						edge.target.pqHandle = pq.push(edge.target, newDist);
 					}
 				}
-				annotations.push(this.makeShortestPathAnnotation(curDist));
+				annotations.push(makeShortestPathAnnotation(curDist));
 				graph.links[edge.id].addStatus("visiting");
-				this.tracePath(edge.target, {addStatus: "active"});
-				this.recordStep(graph, annotations);
+				tracePath(edge.target, {addStatus: "active"});
+				recordStep(graph, annotations);
 			}
 		}
-/* END ALGORITHM */
 	}
 });
 
@@ -129,72 +128,69 @@ app.registerAlgorithm({
 app.registerAlgorithm({
 	id: "bellman-ford",
 	title: "Bellman-Ford (double for-loop)",
-	code: function(graph) {
-/* BEGIN ALGORITHM bellman-ford */
-		var source = this.getSource();
-		var target = this.getTarget();
-		this.addNodeClass(source.id, "source");
-		this.addNodeClass(target.id, "target");
-		var V = this.model.V();
-		var E = this.model.E();
-		this.initializeDistances(graph, source.id);
+	code: function() {
+		var source = getSource();
+		var target = getTarget();
+		addNodeClass(source.id, "source");
+		addNodeClass(target.id, "target");
+		var V = graph.V();
+		var E = graph.E();
+		initializeDistances(graph, source.id);
 		var edgeTo = {};
 		var curDist = graph.nodes[target.id].dist;
-		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
-		this.initializeAnnotations(annotations);
+		var annotations = [makeStepAnnotation(null, {text: ""}), makeShortestPathAnnotation(curDist)];
+		initializeAnnotations(annotations);
 		for (var i = 0; i < V; ++i) {
 			_.each(graph.links, function(edge) {
 				annotations = [];
-				annotations.push(this.makeStepAnnotation(edge));
-				if (this.isTense(edge)) {
-					var newDist = this.relax(edge);
-					this.addToPath(edge);
+				annotations.push(makeStepAnnotation(edge));
+				if (isTense(edge)) {
+					var newDist = relax(edge);
+					addToPath(edge);
 					if (edge.target.id === target.id) {
 						curDist = newDist;
 					}
 				}
-				annotations.push(this.makeShortestPathAnnotation(curDist));
+				annotations.push(makeShortestPathAnnotation(curDist));
 				graph.links[edge.id].addStatus("visiting");
-				this.tracePath(edge.target, {addStatus: "active"});
-				this.recordStep(graph, annotations);
-			}.bind(this));
+				tracePath(edge.target, {addStatus: "active"});
+				recordStep(graph, annotations);
+			});
 		}
-/* END ALGORITHM */
 	}
 });
 
 app.registerAlgorithm({
 	id: "toposort",
 	title: "Relaxing edges in topological order",
-	code: function(graph) {
-/* BEGIN ALGORITHM toposort */
-	var	topoSort = function(graph, startId) {
-		var sorted = [];
-		var dfs = function(fromNode) {
-			if (fromNode.marked) { return; }
-			fromNode.marked = true;
-			for (var i = 0; i < fromNode.adj.length; i++) {
-				dfs(fromNode.adj[i].target);
-			}
-			sorted.push(fromNode);
+	code: function() {
+		var	topoSort = function(graph, startId) {
+			var sorted = [];
+			var dfs = function(fromNode) {
+				if (fromNode.marked) { return; }
+				fromNode.marked = true;
+				for (var i = 0; i < fromNode.adj.length; i++) {
+					dfs(fromNode.adj[i].target);
+				}
+				sorted.push(fromNode);
+			};
+			dfs(graph.nodes[startId]);
+			sorted.reverse();
+			return sorted;
 		};
-		dfs(graph.nodes[startId]);
-		sorted.reverse();
-		return sorted;
-	};
 
-		var source = this.getSource();
-		var target = this.getTarget();
-		this.initializeDistances(graph, source.id);
-		this.addNodeClass(source.id, "source");
-		this.addNodeClass(target.id, "target");
+		var source = getSource();
+		var target = getTarget();
+		initializeDistances(graph, source.id);
+		addNodeClass(source.id, "source");
+		addNodeClass(target.id, "target");
 
 		var edgeTo = {};
 
 		var curDist = graph.nodes[target.id].dist;
 		var topoNodes = topoSort(graph, source.id);
-		var annotations = [this.makeStepAnnotation(null, {text: ""}), this.makeShortestPathAnnotation(curDist)];
-		this.initializeAnnotations(annotations);
+		var annotations = [makeStepAnnotation(null, {text: ""}), makeShortestPathAnnotation(curDist)];
+		initializeAnnotations(annotations);
 
 		for (var i = 0; i < topoNodes.length; i++) {
 			var node = topoNodes[i];
@@ -204,61 +200,57 @@ app.registerAlgorithm({
 			}
 			_.each(node.adj, function(edge) {
 				var newDist = edge.target.dist;
-				// annotations[0] = this.makeStepAnnotation(edge);
+				// annotations[0] = makeStepAnnotation(edge);
 				annotations = [];
-				annotations.push(this.makeStepAnnotation(edge));
-				if (this.isTense(edge)) {
-					newDist = this.relax(edge);
+				annotations.push(makeStepAnnotation(edge));
+				if (isTense(edge)) {
+					newDist = relax(edge);
 					if (edge.target.id === target.id) {
 						curDist = newDist;
 					}
-					this.addToPath(edge);
+					addToPath(edge);
 				}
-				// annotations[1] = this.makeShortestPathAnnotation(curDist);
-				annotations.push(this.makeShortestPathAnnotation(curDist));
-				this.tracePath(edge.target, {addStatus: "active"});
-				this.recordStep(graph, annotations);
+				// annotations[1] = makeShortestPathAnnotation(curDist);
+				annotations.push(makeShortestPathAnnotation(curDist));
+				tracePath(edge.target, {addStatus: "active"});
+				recordStep(graph, annotations);
 				console.log("recording step w/ path " + annotations[1].text);
-			}.bind(this));
+			});
 		}
-/* END ALGORITHM */
 	}
 });
 
 app.registerAlgorithm({
 	id: "dfs",
 	title: "DFS",
-	code: function(graph) {
-/* BEGIN ALGORITHM dfs */
-	var source = this.getSource();
-	this.addNodeClass(source.id, "source");
-	var edgeTo = {};
-	var curPath = [];
-	dfs = function(start) {
-		console.log("running DFS on " + start.id);
-		if (!start.marked) {
-			start.marked = true;
-			start.addStickyStatus("exploring");
-			start.addStatus("visiting");
-  			this.recordStep(graph, []);
-		} else {
-  			this.recordStep(graph, []);
-			console.log("vtx " + start.id + " already marked");
-			return;
-		}
-    for (var i = 0; i < start.adj.length; i++) {
-      	var edge = start.adj[i];
-		graph.addToPath(edge);
-		graph.tracePath(edge.target, {addStatus: "active"});
-    	dfs(edge.target);
-	}
-    start.removeStickyStatus("exploring");
-    start.addStickyStatus("finished");
-    this.recordStep(graph, []);
-  }.bind(this);
-	console.log("ABOUT TO RUN DFS");
-  _(graph.nodes).each(function(x) { x.marked = false; });
-  dfs(source);
-/* END ALGORITHM */
+	code: function() {
+		var source = getSource();
+		addNodeClass(source.id, "source");
+		var edgeTo = {};
+		var curPath = [];
+		dfs = function(start) {
+			console.log("running DFS on " + start.id);
+			if (!start.marked) {
+				start.marked = true;
+				start.addStickyStatus("exploring");
+				start.addStatus("visiting");
+				recordStep(graph, []);
+			} else {
+				recordStep(graph, []);
+				console.log("vtx " + start.id + " already marked");
+				return;
+			}
+			for (var i = 0; i < start.adj.length; i++) {
+				var edge = start.adj[i];
+				graph.addToPath(edge);
+				graph.tracePath(edge.target, {addStatus: "active"});
+				dfs(edge.target);
+			}
+			start.removeStickyStatus("exploring");
+			start.addStickyStatus("finished");
+			recordStep(graph, []);
+		};
+		_(graph.nodes).each(function(x) { x.marked = false; });
+		dfs(source);
 	}
 });

@@ -99,6 +99,62 @@ app.AlgoModel = Backbone.Model.extend({
 		}
 	},
 
+	/**
+	 *   Wrap the user-visible code with setup/teardown sections
+	 */
+	loadCode: function() {
+
+	},
+
+	/**
+	 *   Wraps the runAlgorithm function with an initialization step which creates
+	 *   top-level graph traversal and viz API aliases visible in runAlgorithm()
+	 */
+	wrapCode: function(code, context) {
+		var preamble = function() {
+			var getSource, getTarget, setSource, setTarget, initializeDistances,
+				addNodeClass, addLinkClass,
+				makeStepAnnotation, makeShortestPathAnnotation, initializeAnnotations,
+				isTense, relax,
+				addToPath, tracePath, recordStep,
+				graph;
+			graph = context.model.graph;
+			getSource = context.getSource.bind(context);
+			getTarget = context.getTarget.bind(context);
+			setSource = context.setSource.bind(context);
+			setTarget = context.setTarget.bind(context);
+			initializeDistances = context.initializeDistances.bind(context);
+			addNodeClass = context.addNodeClass.bind(context);
+			addLinkClass = context.addLinkClass.bind(context);
+			makeStepAnnotation = context.makeStepAnnotation.bind(context);
+			makeShortestPathAnnotation = context.makeShortestPathAnnotation.bind(context);
+			initializeAnnotations = context.initializeAnnotations.bind(context);
+			isTense = context.isTense.bind(context);
+			addToPath = context.addToPath.bind(context);
+			relax = context.relax.bind(context);
+			tracePath = context.tracePath.bind(context);
+			recordStep = context.recordStep.bind(context);
+		};
+		var fText = this.extractFunctionBody(preamble) + "\n" + this.extractFunctionBody(code);
+		var f;
+		eval("f = function() {" + fText + "}");
+		return f;
+	},
+
+	// this is not generic! it expects an opening brace to be the last symbol on the same
+	// line as the "function" keyword.  TODO: make this work properly
+	extractFunctionBody: function(code) {
+		var text;
+		if (typeof code === "function") {
+			text = code.toString();
+		} else if (typeof code === "string") {
+			text = code;
+		} else {
+			throw new Error("Code must be a function or a string");
+		}
+		return text.replace(/^\s*function.*{\s*\n/, "").replace(/}\s*$/,"");
+	},
+
 	loadDefaultCode: function() {
 		var algoId = this.get("algo_id");
 		if (!algoId) {

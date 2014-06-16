@@ -43,6 +43,12 @@ app.GraphModel = Backbone.Model.extend({
 	 *   Basic API for graph data and operations
 	 */
 	graphPrototype: {
+		V: function() {
+			return  _.size(this.nodes);
+		},
+		E: function() {
+			return  _.size(this.links);
+		},
 		clearStatus: function(options) {
 			options = options || {};
 			var clearStatus;
